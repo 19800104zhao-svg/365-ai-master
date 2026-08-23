@@ -1,0 +1,2326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>365 AI Master — 你的 AI 超级大师</title>
+    <!-- 定位: 承接官方 /insights 的下一步 —— 从"诊断"到"改善验证闭环"。
+         英文 meta 服务英文渠道(X/Reddit/HN)的分享卡片与检索。
+         og:image 待发布前补一张 1200x630 静态图(需给 FastAPI 挂 StaticFiles)。 -->
+    <meta name="description" content="See your AI coding health score, get a fix plan, and verify you actually improved. /insights tells you what's wrong — 365 AI Master proves you fixed it. Health check for Claude Code & Codex usage.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="365 AI Master — AI usage health check for Claude Code">
+    <meta property="og:description" content="/insights tells you what's wrong — 365 proves you fixed it. Score your AI coding habits, get a fix plan, verify the before/after.">
+    <meta property="og:url" content="https://360-ai-coach-production.up.railway.app/">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="365 AI Master — AI usage health check for Claude Code">
+    <meta name="twitter:description" content="/insights tells you what's wrong — 365 proves you fixed it. Score, fix, verify your AI coding habits.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧙</text></svg>">
+    <style>
+        :root {
+            --bg: #f5f5f7;
+            --card: #ffffff;
+            --ink: #1d1d1f;
+            --ink-2: #6e6e73;
+            --ink-3: #86868b;
+            --line: rgba(0, 0, 0, 0.08);
+            --blue: #0071e3;
+            --green: #30d158;
+            --orange: #ff9f0a;
+            --red: #ff453a;
+            --ring-track: rgba(0, 0, 0, 0.06);
+            --chip: rgba(0, 0, 0, 0.04);
+            --glass: rgba(255, 255, 255, 0.72);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #000000;
+                --card: #1c1c1e;
+                --ink: #f5f5f7;
+                --ink-2: #a1a1a6;
+                --ink-3: #86868b;
+                --line: rgba(255, 255, 255, 0.1);
+                --blue: #0a84ff;
+                --ring-track: rgba(255, 255, 255, 0.09);
+                --chip: rgba(255, 255, 255, 0.07);
+                --glass: rgba(28, 28, 30, 0.72);
+            }
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+                "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+            -webkit-font-smoothing: antialiased;
+            line-height: 1.47;
+        }
+
+        /* ===== 磨砂顶栏 ===== */
+        .nav {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            backdrop-filter: saturate(180%) blur(20px);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            background: var(--glass);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .nav-inner {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 12px 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            font-size: 17px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        .brand span { color: var(--ink-3); font-weight: 400; }
+
+        .recheck {
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            color: #fff;
+            background: var(--blue);
+            border: none;
+            border-radius: 980px;
+            padding: 7px 16px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .recheck:hover { opacity: 0.85; }
+        .recheck:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+        .container {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 0 22px 80px;
+        }
+
+        /* ===== Hero: 身份区 (环 + 段位 + 主行动) ===== */
+        .hero {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            padding: 40px 0 32px;
+        }
+
+        .ring-wrap {
+            position: relative;
+            width: 168px;
+            height: 168px;
+            flex-shrink: 0;
+        }
+
+        .ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+
+        .hero-right { flex: 1; min-width: 0; }
+
+        .tier-title {
+            font-size: 34px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            line-height: 1.15;
+        }
+
+        .tier-verdict {
+            margin-top: 6px;
+            font-size: 15px;
+            color: var(--ink-2);
+        }
+
+        .encourage {
+            margin-top: 14px;
+            font-size: 14px;
+            color: var(--ink-2);
+            line-height: 1.6;
+            max-width: 46em;
+        }
+
+        .hero-actions { margin-top: 22px; display: flex; gap: 10px; flex-wrap: wrap; }
+
+        .btn-primary {
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 500;
+            color: #fff;
+            background: var(--blue);
+            border: none;
+            border-radius: 980px;
+            padding: 12px 24px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-primary:hover { opacity: 0.85; }
+        .btn-primary:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+        .btn-secondary {
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--ink);
+            background: var(--chip);
+            border: none;
+            border-radius: 980px;
+            padding: 12px 22px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-secondary:hover { opacity: 0.7; }
+        .btn-secondary:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+        /* ===== 指标网格 (数值/标签/说明 三段对齐) ===== */
+        .stat-grid {
+            display: grid;
+            gap: 0;
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            overflow: hidden;
+        }
+
+        .stat-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+        .stat-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+        .stat-grid.cols-1 { grid-template-columns: 1fr; }
+
+        .stat-cell {
+            padding: 22px 24px;
+            border-right: 1px solid var(--line);
+        }
+
+        .stat-cell:last-child { border-right: none; }
+
+        .stat-headline {
+            font-size: 30px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.1;
+        }
+
+        .stat-label {
+            margin-top: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--ink);
+        }
+
+        .stat-caption {
+            margin-top: 3px;
+            font-size: 12px;
+            color: var(--ink-3);
+            line-height: 1.5;
+        }
+
+        /* ===== 分项体检环 ===== */
+        .dim-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            overflow: hidden;
+            margin-top: 16px;
+        }
+
+        .dim-cell {
+            padding: 22px 12px 20px;
+            text-align: center;
+            border-right: 1px solid var(--line);
+        }
+
+        .dim-cell:last-child { border-right: none; }
+
+        .dim-cell .ring { position: relative; width: 62px; height: 62px; margin: 0 auto; }
+        .dim-cell svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .dim-cell .num {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 17px; font-weight: 500; font-variant-numeric: tabular-nums;
+        }
+        .dim-cell .lbl { margin-top: 9px; font-size: 12px; font-weight: 500; color: var(--ink-2); }
+
+        @media (max-width: 760px) {
+            .hero { flex-direction: column; text-align: center; gap: 22px; padding: 28px 0 24px; }
+            .hero-actions { justify-content: center; }
+            .encourage { margin-left: auto; margin-right: auto; }
+            .tier-title { font-size: 28px; }
+            .stat-grid.cols-3, .stat-grid.cols-2 { grid-template-columns: 1fr; }
+            .stat-cell { border-right: none; border-bottom: 1px solid var(--line); }
+            .stat-cell:last-child { border-bottom: none; }
+            .dim-grid { grid-template-columns: repeat(2, 1fr); }
+            .dim-cell:nth-child(2) { border-right: none; }
+            .dim-cell:nth-child(1), .dim-cell:nth-child(2) { border-bottom: 1px solid var(--line); }
+        }
+
+        .challenge-banner {
+            background: linear-gradient(90deg, rgba(255,159,10,0.14), rgba(255,69,58,0.1));
+            border: 1px solid rgba(255,159,10,0.35);
+            border-radius: 14px;
+            padding: 13px 18px;
+            margin: 0 0 8px;
+            font-size: 14px;
+        }
+
+        /* ===== 排行榜 ===== */
+        .rank-list { counter-reset: rank; }
+
+        .rank-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .rank-item:last-child { border-bottom: none; }
+
+        .rank-no {
+            flex-shrink: 0;
+            width: 26px;
+            height: 26px;
+            border-radius: 8px;
+            background: var(--chip);
+            color: var(--ink-2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .rank-item:nth-child(1) .rank-no { background: #ffd60a; color: #6b5300; }
+        .rank-item:nth-child(2) .rank-no { background: #d9d9de; color: #555; }
+        .rank-item:nth-child(3) .rank-no { background: #e8b98a; color: #6b3f13; }
+
+        .rank-body { flex: 1; min-width: 0; }
+        .rank-name { font-size: 14px; font-weight: 600; }
+        .rank-name a { color: var(--ink); text-decoration: none; }
+        .rank-name a:hover { color: var(--blue); }
+        .rank-tag { font-size: 13px; color: var(--ink-2); margin-top: 2px; }
+        .rank-why { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+
+        .fixed-tag {
+            display: inline-block;
+            font-size: 12px;
+            color: var(--green);
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        /* ===== 优化方案页: 执行卡 ===== */
+        .plan-banner {
+            background: linear-gradient(90deg, rgba(10,132,255,0.1), rgba(191,90,242,0.08));
+            border: 1px solid rgba(10,132,255,0.25);
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+        }
+
+        .plan-banner .t { font-size: 16px; font-weight: 700; }
+        .plan-banner .s { font-size: 13px; color: var(--ink-2); margin-top: 3px; }
+
+        .exec-card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 22px;
+            margin-bottom: 14px;
+        }
+
+        .exec-head { display: flex; align-items: center; gap: 10px; }
+        .exec-title { font-size: 16px; font-weight: 600; flex: 1; }
+        .exec-impact { font-size: 12px; color: var(--green); font-weight: 600; white-space: nowrap; }
+        .exec-detail { margin-top: 6px; font-size: 13px; color: var(--ink-2); }
+
+        .step-list { margin-top: 12px; }
+
+        .step {
+            display: flex;
+            gap: 12px;
+            padding: 8px 0;
+            font-size: 14px;
+            align-items: flex-start;
+        }
+
+        .step-no {
+            flex-shrink: 0;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 1.5px solid var(--blue);
+            color: var(--blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            margin-top: 1px;
+        }
+
+        .step-text { flex: 1; line-height: 1.55; }
+        .step-text code { font-size: 12px; background: var(--chip); border-radius: 5px; padding: 1px 6px; }
+
+        .ring-track { stroke: var(--ring-track); }
+
+        .ring-value {
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1.4s cubic-bezier(0.22, 1, 0.36, 1), stroke 0.6s;
+        }
+
+        .ring-scanning .ring-value {
+            transition: none;
+            animation: spin-dash 1.1s linear infinite;
+        }
+
+        @keyframes spin-dash {
+            0%   { stroke-dashoffset: 560; }
+            100% { stroke-dashoffset: -560; }
+        }
+
+        .ring-center {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .score-num {
+            font-size: 84px;
+            font-weight: 200;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .score-cap {
+            margin-top: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--ink-3);
+        }
+
+        .scan-status {
+            margin-top: 22px;
+            font-size: 15px;
+            color: var(--ink-2);
+            min-height: 22px;
+        }
+
+        .verdict {
+            margin-top: 22px;
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.015em;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.6s, transform 0.6s;
+        }
+
+        .verdict.show { opacity: 1; transform: none; }
+
+        .hero-stats {
+            margin-top: 18px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            opacity: 0;
+            transition: opacity 0.6s 0.2s;
+        }
+
+        .hero-stats.show { opacity: 1; }
+
+        .pill {
+            background: var(--chip);
+            border-radius: 980px;
+            padding: 8px 18px;
+            font-size: 14px;
+            color: var(--ink-2);
+        }
+
+        .pill strong { color: var(--ink); font-weight: 600; }
+
+        /* ===== 通用板块 ===== */
+        .section { margin-top: 44px; }
+
+        .section-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            padding: 0 2px;
+        }
+
+        .section-title {
+            font-size: 21px;
+            font-weight: 600;
+            letter-spacing: -0.015em;
+        }
+
+        .section-sub { font-size: 13px; color: var(--ink-3); }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 24px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 760px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            .score-num { font-size: 68px; }
+        }
+
+        /* ===== 四维分项 ===== */
+        .dims {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        @media (max-width: 760px) { .dims { grid-template-columns: repeat(2, 1fr); } }
+
+        .dim-card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 20px 12px 18px;
+            text-align: center;
+        }
+
+        .dim-ring { position: relative; width: 84px; height: 84px; margin: 0 auto; }
+        .dim-ring svg { transform: rotate(-90deg); }
+        .dim-ring .val {
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .dim-score {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 300;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .dim-label { margin-top: 10px; font-size: 13px; font-weight: 500; color: var(--ink-2); }
+
+        /* ===== 体检发现 (360 式) ===== */
+        .issue {
+            border-bottom: 1px solid var(--line);
+        }
+
+        .issue:last-child { border-bottom: none; }
+
+        .issue-row {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px 4px;
+            background: none;
+            border: none;
+            font-family: inherit;
+            font-size: 15px;
+            color: var(--ink);
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .issue-row:focus-visible { outline: 2px solid var(--blue); border-radius: 8px; }
+
+        .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .dot.critical { background: var(--red); }
+        .dot.warning { background: var(--orange); }
+        .dot.info { background: var(--blue); }
+
+        .issue-body-inline { flex: 1; min-width: 0; }
+        .issue-title { font-weight: 500; display: block; }
+        .issue-detail {
+            display: block;
+            font-size: 12px;
+            color: var(--ink-3);
+            margin-top: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .issue-dim {
+            font-size: 12px;
+            color: var(--ink-3);
+            background: var(--chip);
+            border-radius: 6px;
+            padding: 3px 8px;
+            flex-shrink: 0;
+        }
+
+        .chev {
+            color: var(--ink-3);
+            transition: transform 0.25s;
+            flex-shrink: 0;
+        }
+
+        .issue.open .chev { transform: rotate(90deg); }
+
+        .issue-body {
+            display: none;
+            padding: 0 4px 18px 24px;
+            font-size: 14px;
+            color: var(--ink-2);
+        }
+
+        .issue.open .issue-body { display: block; }
+
+        .fix-block {
+            margin-top: 10px;
+            background: var(--chip);
+            border-radius: 12px;
+            padding: 12px 14px;
+        }
+
+        .fix-block .k {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            color: var(--ink-3);
+            text-transform: uppercase;
+        }
+
+        .fix-block .v { margin-top: 4px; color: var(--ink); }
+
+        .impact-tag { margin-top: 10px; font-size: 13px; color: var(--green); font-weight: 500; }
+
+        .all-clear {
+            text-align: center;
+            padding: 28px 0;
+            color: var(--ink-2);
+            font-size: 15px;
+        }
+
+        .all-clear .mark { font-size: 40px; color: var(--green); display: block; margin-bottom: 8px; }
+
+        /* ===== 模型路由表 ===== */
+        .route-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+
+        .route-table th {
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--ink-3);
+            padding: 0 8px 10px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .route-table td {
+            padding: 13px 8px;
+            border-bottom: 1px solid var(--line);
+            vertical-align: top;
+        }
+
+        .route-table tr:last-child td { border-bottom: none; }
+
+        .model-tag {
+            display: inline-block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--blue);
+            white-space: nowrap;
+        }
+
+        .save-tag { font-size: 12px; color: var(--green); margin-top: 3px; }
+
+        .diag-note { font-size: 14px; color: var(--ink-2); margin-bottom: 16px; }
+
+        /* ===== 时间分布 ===== */
+        .hour-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            height: 96px;
+            margin: 6px 0 6px;
+        }
+
+        .hour-bar {
+            flex: 1;
+            background: var(--ring-track);
+            border-radius: 3px;
+            min-height: 3px;
+            transition: height 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .hour-bar.lit { background: var(--blue); opacity: 0.45; }
+        .hour-bar.peak { background: var(--blue); opacity: 1; }
+
+        .hour-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--ink-3);
+            margin-bottom: 14px;
+        }
+
+        .insight {
+            padding: 12px 0;
+            border-top: 1px solid var(--line);
+            font-size: 14px;
+            color: var(--ink-2);
+        }
+
+        .insight .p { font-weight: 600; color: var(--ink); display: block; margin-bottom: 3px; }
+
+        /* ===== 目标与路径 ===== */
+        .goal-quote {
+            font-size: 17px;
+            font-weight: 500;
+            letter-spacing: -0.01em;
+            padding-left: 14px;
+            border-left: 3px solid var(--blue);
+            margin-bottom: 12px;
+        }
+
+        .path-text { font-size: 14px; color: var(--ink-2); }
+
+        /* ===== 趋势与统计 ===== */
+        .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+
+        .metric { text-align: center; padding: 14px 6px; background: var(--chip); border-radius: 12px; }
+
+        .metric .v { font-size: 24px; font-weight: 300; font-variant-numeric: tabular-nums; }
+        .metric .l { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+
+        .trend-tag {
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 980px;
+            padding: 4px 12px;
+            vertical-align: middle;
+        }
+
+        .trend-improving { background: rgba(48, 209, 88, 0.15); color: var(--green); }
+        .trend-stable { background: var(--chip); color: var(--ink-2); }
+        .trend-degrading { background: rgba(255, 69, 58, 0.15); color: var(--red); }
+        .trend-insufficient_data { background: var(--chip); color: var(--ink-3); }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 11px 0;
+            border-bottom: 1px solid var(--line);
+            font-size: 14px;
+        }
+
+        .stat-row:last-child { border-bottom: none; }
+        .stat-row .k { color: var(--ink-2); }
+        .stat-row .v { font-weight: 500; font-variant-numeric: tabular-nums; }
+
+        .improvement {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--line);
+            font-size: 14px;
+        }
+
+        .improvement:last-child { border-bottom: none; }
+        .improvement .t { font-weight: 600; color: var(--green); }
+        .improvement .d { color: var(--ink-2); margin-top: 2px; }
+
+        .empty-note { color: var(--ink-3); font-size: 14px; text-align: center; padding: 18px 0; }
+
+        /* ===== 入场动画 ===== */
+        .reveal {
+            opacity: 0;
+            transform: translateY(14px);
+            transition: opacity 0.55s, transform 0.55s;
+        }
+
+        .reveal.show { opacity: 1; transform: none; }
+
+        /* ===== 导航 tabs (segmented control) ===== */
+        .tabs {
+            display: flex;
+            gap: 2px;
+            background: var(--chip);
+            border-radius: 980px;
+            padding: 3px;
+        }
+
+        .tab {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--ink-2);
+            text-decoration: none;
+            padding: 6px 14px;
+            border-radius: 980px;
+            transition: background 0.2s, color 0.2s;
+            white-space: nowrap;
+        }
+
+        .tab.active {
+            background: var(--card);
+            color: var(--ink);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        @media (max-width: 760px) {
+            .nav-inner { flex-wrap: wrap; gap: 8px; }
+            .tabs { order: 3; width: 100%; justify-content: space-between; }
+        }
+
+        .page[hidden] { display: none; }
+
+        /* ===== 页面级标题 (与体检页同一套语言: 左对齐、大标题、副标题) ===== */
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 40px 0 26px;
+        }
+
+        .page-header .icon { font-size: 40px; line-height: 1; flex-shrink: 0; }
+        .page-header .body { flex: 1; min-width: 0; }
+
+        .page-header h1 {
+            font-size: 34px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            line-height: 1.15;
+        }
+
+        .page-header .sub {
+            margin-top: 8px;
+            font-size: 15px;
+            color: var(--ink-2);
+            line-height: 1.55;
+            max-width: 44em;
+        }
+
+        .page-header .meta {
+            flex-shrink: 0;
+            font-size: 13px;
+            color: var(--ink-3);
+            font-variant-numeric: tabular-nums;
+            padding-top: 8px;
+        }
+
+        /* 分节标题: 一行左标题 + 右计数, 下有细线 */
+        .band {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--line);
+            margin: 32px 0 16px;
+        }
+
+        .band .t { font-size: 20px; font-weight: 600; letter-spacing: -0.015em; }
+        .band .c { font-size: 13px; color: var(--ink-3); }
+
+        @media (max-width: 760px) {
+            .page-header { padding: 28px 0 20px; }
+            .page-header h1 { font-size: 28px; }
+            .page-header .meta { display: none; }
+        }
+
+        /* ===== 大师推荐页 ===== */
+        .tip-card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 22px;
+            margin-bottom: 14px;
+        }
+
+        .tip-kind {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            border-radius: 6px;
+            padding: 3px 8px;
+            margin-bottom: 10px;
+        }
+
+        .tip-kind.tip { background: rgba(10,132,255,0.12); color: var(--blue); }
+        .tip-kind.skill { background: rgba(48,209,88,0.14); color: var(--green); }
+        .tip-kind.agent { background: rgba(191,90,242,0.14); color: #bf5af2; }
+        .tip-kind.security { background: rgba(255,159,10,0.15); color: var(--orange); }
+
+        .tip-title { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+        .tip-detail { margin-top: 6px; font-size: 14px; color: var(--ink-2); }
+
+        .tip-meta {
+            margin-top: 12px;
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            font-size: 12px;
+            color: var(--ink-3);
+        }
+
+        .privacy-note {
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--orange);
+            background: rgba(255,159,10,0.08);
+            border-radius: 10px;
+            padding: 10px 12px;
+        }
+
+        .install-row {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .install-cmd {
+            flex: 1;
+            font-family: ui-monospace, "SF Mono", Menlo, monospace;
+            font-size: 12px;
+            background: var(--chip);
+            border-radius: 8px;
+            padding: 9px 12px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .copy-btn {
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--blue);
+            background: none;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
+        .subscribe-box {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .subscribe-box input {
+            flex: 1;
+            font-family: inherit;
+            font-size: 14px;
+            color: var(--ink);
+            background: var(--chip);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 11px 14px;
+            outline: none;
+        }
+
+        .subscribe-box input:focus { border-color: var(--blue); }
+
+        .subscribe-box button {
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            color: #fff;
+            background: var(--blue);
+            border: none;
+            border-radius: 10px;
+            padding: 11px 20px;
+            cursor: pointer;
+        }
+
+        .sub-msg { margin-top: 10px; font-size: 13px; color: var(--green); min-height: 18px; }
+
+        /* ===== Pro 服务页 ===== */
+        .price-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        @media (max-width: 760px) { .price-grid { grid-template-columns: 1fr; } }
+
+        .price-card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 26px 22px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .price-card.featured {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 1px var(--blue);
+        }
+
+        .price-badge {
+            position: absolute;
+            top: -11px;
+            left: 22px;
+            background: var(--blue);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            border-radius: 980px;
+            padding: 4px 12px;
+        }
+
+        .price-card { position: relative; }
+
+        .price-tier { font-size: 13px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.05em; }
+        .price-num {
+            margin-top: 10px;
+            font-size: 40px;
+            font-weight: 300;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+        }
+        .price-num small { font-size: 15px; color: var(--ink-3); font-weight: 400; letter-spacing: 0; }
+        /* 文字型价格 (如「定制」) 用正常字重字号,不套数字排版 */
+        .price-num.is-text { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
+        .price-desc { margin-top: 8px; font-size: 13px; color: var(--ink-2); min-height: 2.6em; }
+
+        .price-feats {
+            list-style: none;
+            margin: 18px 0 22px;
+            flex: 1;
+            border-top: 1px solid var(--line);
+            padding-top: 16px;
+        }
+        .price-feats li {
+            font-size: 14px;
+            color: var(--ink-2);
+            line-height: 1.5;
+            padding: 8px 0 8px 26px;
+            position: relative;
+        }
+        .price-feats li::before {
+            content: '✓';
+            position: absolute;
+            left: 3px;
+            top: 8px;
+            color: var(--green);
+            font-weight: 600;
+        }
+
+        .price-cta {
+            display: block;
+            text-align: center;
+            font-size: 15px;
+            font-weight: 500;
+            text-decoration: none;
+            border-radius: 980px;
+            padding: 12px 0;
+            color: var(--ink);
+            background: var(--chip);
+            transition: opacity 0.2s;
+        }
+
+        .price-cta:hover { opacity: 0.75; }
+        .price-card.featured .price-cta { background: var(--blue); color: #fff; }
+
+        /* Pro 页信任说明 */
+        .trust-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0;
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            overflow: hidden;
+            margin-top: 16px;
+        }
+
+        .trust-cell { padding: 20px 22px; border-right: 1px solid var(--line); }
+        .trust-cell:last-child { border-right: none; }
+        .trust-cell .t { font-size: 14px; font-weight: 600; }
+        .trust-cell .d { margin-top: 5px; font-size: 13px; color: var(--ink-2); line-height: 1.55; }
+
+        @media (max-width: 760px) {
+            .trust-grid { grid-template-columns: 1fr; }
+            .trust-cell { border-right: none; border-bottom: 1px solid var(--line); }
+            .trust-cell:last-child { border-bottom: none; }
+        }
+
+        /* ===== 全部技能库 ===== */
+        .lib-filters {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+
+        .lib-chip {
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--ink-2);
+            background: var(--chip);
+            border: none;
+            border-radius: 980px;
+            padding: 7px 15px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .lib-chip:hover { opacity: 0.75; }
+        .lib-chip.active { background: var(--blue); color: #fff; }
+        .lib-chip:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+        .lib-progress {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            color: var(--ink-3);
+            margin-bottom: 14px;
+        }
+
+        .lib-bar {
+            flex: 1;
+            max-width: 220px;
+            height: 5px;
+            background: var(--ring-track);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .lib-bar i {
+            display: block;
+            height: 100%;
+            background: var(--green);
+            border-radius: 3px;
+            transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .lib-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        @media (max-width: 760px) { .lib-grid { grid-template-columns: 1fr; } }
+
+        .lib-item {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 16px 18px;
+            cursor: pointer;
+            transition: border-color 0.15s;
+        }
+
+        .lib-item:hover { border-color: var(--blue); }
+        .lib-item.read { opacity: 0.58; }
+
+        .lib-item-head { display: flex; align-items: center; gap: 8px; }
+        .lib-item-title { font-size: 14px; font-weight: 600; flex: 1; line-height: 1.4; }
+        .lib-read-mark { font-size: 12px; color: var(--green); font-weight: 600; flex-shrink: 0; }
+        .lib-item-detail {
+            margin-top: 6px;
+            font-size: 13px;
+            color: var(--ink-2);
+            line-height: 1.55;
+            display: none;
+        }
+        .lib-item.open .lib-item-detail { display: block; }
+        .lib-item-meta { margin-top: 8px; font-size: 11px; color: var(--ink-3); display: none; }
+        .lib-item.open .lib-item-meta { display: block; }
+
+        .lib-done {
+            text-align: center;
+            padding: 26px 20px;
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            margin-top: 14px;
+        }
+        .lib-done .m { font-size: 32px; color: var(--green); }
+        .lib-done .t { margin-top: 6px; font-size: 16px; font-weight: 600; }
+        .lib-done .d { margin-top: 4px; font-size: 13px; color: var(--ink-2); }
+
+        /* 订阅 CTA 带 */
+        .subscribe-band {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 26px;
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            margin-top: 16px;
+        }
+
+        .subscribe-band .copy { flex: 1; min-width: 0; }
+        .subscribe-band .t { font-size: 17px; font-weight: 600; }
+        .subscribe-band .d { margin-top: 5px; font-size: 13px; color: var(--ink-2); }
+        .subscribe-band .form { flex-shrink: 0; width: 340px; max-width: 100%; }
+
+        @media (max-width: 760px) {
+            .subscribe-band { flex-direction: column; align-items: stretch; gap: 16px; }
+            .subscribe-band .form { width: 100%; }
+        }
+
+        footer {
+            margin-top: 64px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--ink-3);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-inner">
+            <div class="brand">365 AI Master <span>· 你的 AI 超级大师</span></div>
+            <div class="tabs" id="tabs">
+                <a href="#checkup" class="tab" data-tab="checkup">体检</a>
+                <a href="#master" class="tab" data-tab="master">大师推荐</a>
+                <a href="#plan" class="tab" data-tab="plan">优化方案</a>
+                <a href="#pro" class="tab" data-tab="pro">Pro 服务</a>
+            </div>
+            <button class="recheck" id="recheckBtn" onclick="runCheckup()">重新体检</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- 页 1: 体检 -->
+        <div class="page" id="page-checkup">
+            <div id="challengeBanner"></div>
+            <section class="hero">
+                <div class="ring-wrap" id="ringWrap">
+                    <svg viewBox="0 0 240 240">
+                        <circle class="ring-track" cx="120" cy="120" r="106" fill="none" stroke-width="14"/>
+                        <circle class="ring-value" id="ringValue" cx="120" cy="120" r="106" fill="none"
+                                stroke="#0071e3" stroke-width="14"
+                                stroke-dasharray="666" stroke-dashoffset="666"/>
+                    </svg>
+                    <div class="ring-center">
+                        <div class="score-num" id="scoreNum">—</div>
+                        <div class="score-cap">AI 健康分</div>
+                    </div>
+                </div>
+                <div class="hero-right">
+                    <div class="scan-status" id="scanStatus"></div>
+                    <div id="heroInfo"></div>
+                </div>
+            </section>
+            <div id="heroMetrics"></div>
+            <div id="report-checkup"></div>
+        </div>
+
+        <!-- 页 2: 大师推荐 -->
+        <div class="page" id="page-master" hidden>
+            <div id="report-master"></div>
+        </div>
+
+        <!-- 页 3: 优化方案 -->
+        <div class="page" id="page-plan" hidden>
+            <div id="report-plan"></div>
+        </div>
+
+        <!-- 页 4: Pro 服务 -->
+        <div class="page" id="page-pro" hidden>
+            <div id="report-pro"></div>
+        </div>
+
+        <footer>365 AI Master · 数据仅用于生成你自己的报告 · 不存储任何提示词内容 · 推荐内容全部经过甄别并注明来源</footer>
+    </div>
+
+    <script>
+        const API_URL = localStorage.getItem('AGENTFIT_API_URL') || '';
+        const DEVICE_TOKEN_KEY = 'AGENTFIT_DEVICE_TOKEN';
+
+        /* 匿名设备令牌: 首页只看得到「本机」的数据, 不再泄露/劫持他人。
+           来源优先级: URL ?t=(CLI sync 打印的个性化链接) > localStorage。 */
+        function getDeviceToken() {
+            const params = new URLSearchParams(location.search);
+            const fromUrl = (params.get('t') || '').trim();
+            if (fromUrl) {
+                try { localStorage.setItem(DEVICE_TOKEN_KEY, fromUrl); } catch (e) {}
+                // 从地址栏抹掉 token, 避免被整条 URL 复制分享出去
+                params.delete('t');
+                const qs = params.toString();
+                history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+                return fromUrl;
+            }
+            try { return localStorage.getItem(DEVICE_TOKEN_KEY) || ''; } catch (e) { return ''; }
+        }
+
+        /* fetch 加超时 + 失败退避重试一次 — 治 Railway 冷启动 ERR_CONNECTION_CLOSED */
+        async function fetchJSON(url, { retries = 1, timeout = 8000 } = {}) {
+            for (let attempt = 0; ; attempt++) {
+                const ctrl = new AbortController();
+                const timer = setTimeout(() => ctrl.abort(), timeout);
+                try {
+                    const res = await fetch(url, { mode: 'cors', signal: ctrl.signal });
+                    clearTimeout(timer);
+                    return res;
+                } catch (e) {
+                    clearTimeout(timer);
+                    if (attempt >= retries) throw e;
+                    await new Promise(r => setTimeout(r, 800));
+                }
+            }
+        }
+
+        function esc(s) {
+            return String(s ?? '').replace(/[&<>"']/g, ch => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[ch]));
+        }
+
+        function scoreColor(v) {
+            if (v >= 85) return 'var(--green)';
+            if (v >= 70) return 'var(--blue)';
+            if (v >= 50) return 'var(--orange)';
+            return 'var(--red)';
+        }
+
+        const SCAN_STEPS = [
+            '正在检查模型配置…',
+            '正在分析成本结构…',
+            '正在扫描时间习惯…',
+            '正在评估对话卫生…',
+            '正在生成优化方案…',
+        ];
+
+        let scanTimer = null;
+
+        function startScanAnimation() {
+            clearInterval(scanTimer);  // 防止连续点击叠加定时器
+            const wrap = document.getElementById('ringWrap');
+            const status = document.getElementById('scanStatus');
+            const num = document.getElementById('scoreNum');
+            wrap.classList.add('ring-scanning');
+            num.textContent = '—';
+            document.getElementById('heroInfo').innerHTML = '';
+            document.getElementById('heroMetrics').innerHTML = '';
+            let i = 0;
+            status.textContent = SCAN_STEPS[0];
+            scanTimer = setInterval(() => {
+                i = (i + 1) % SCAN_STEPS.length;
+                status.textContent = SCAN_STEPS[i];
+            }, 560);
+        }
+
+        function stopScanAnimation() {
+            clearInterval(scanTimer);
+            document.getElementById('ringWrap').classList.remove('ring-scanning');
+            document.getElementById('scanStatus').textContent = '';
+        }
+
+        function countUp(el, target, ms) {
+            const t0 = performance.now();
+            function tick(t) {
+                const p = Math.min(1, (t - t0) / ms);
+                const eased = 1 - Math.pow(1 - p, 3);
+                el.textContent = Math.round(target * eased);
+                if (p < 1) requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+        }
+
+        function revealScore(coach) {
+            stopScanAnimation();
+            const ring = document.getElementById('ringValue');
+            const num = document.getElementById('scoreNum');
+            const C = 666; // 2πr, r=106
+            const info = document.getElementById('heroInfo');
+            const metrics = document.getElementById('heroMetrics');
+
+            if (!coach) {
+                // 空态(从未同步 / 该设备暂无数据): 显示「—」而非 0, 避免把「没数据」误读成「0 分」
+                num.textContent = '—';
+                num.style.color = 'var(--ink-3)';
+                ring.style.stroke = 'var(--ring-track)';
+                ring.style.strokeDashoffset = C;
+                info.innerHTML = `
+                    <div class="tier-title">待体检</div>
+                    <div class="tier-verdict">还没有你的使用数据</div>
+                    <div class="encourage">同步一次后,这里会显示你的专属体检结果。<br>
+                    <span style="color:var(--ink-3); font-size:13px;">已安装小工具的用户: 在「终端」App 里运行 <code>agentfit sync</code>,打开命令末尾给出的专属链接即可。</span></div>
+                `;
+                metrics.innerHTML = '';
+                renderChallengeBanner(null);
+                return;
+            }
+
+            const score = coach.score;
+            const color = scoreColor(score);
+            ring.style.stroke = color;
+            ring.style.strokeDashoffset = C - (C * score / 100);
+            num.style.color = color;
+            countUp(num, score, 1200);
+
+            const issueCount = (coach.issues || []).length;
+            info.innerHTML = `
+                <div class="tier-title">${esc(coach.title_text || '')}</div>
+                <div class="tier-verdict">${esc(coach.verdict_text || '')}</div>
+                <div class="encourage">${esc(coach.encourage_text || '')}</div>
+                <div class="hero-actions">
+                    ${issueCount ? `
+                        <button class="btn-primary" onclick="gotoPlan(0)">查看 ${issueCount} 个问题的修复方案</button>
+                    ` : ''}
+                    <button class="btn-secondary" onclick="shareScore()">分享成绩单</button>
+                </div>
+            `;
+
+            // 关键指标: 排名 / 订阅性价比 / 优化空间 — 只渲染有值的
+            const cells = [];
+            if (coach.rank_headline) {
+                cells.push({ h: coach.rank_headline, l: '全球排名', c: coach.rank_caption, color: 'var(--blue)' });
+            }
+            if (coach.value_headline) {
+                cells.push({ h: coach.value_headline, l: coach.value_label, c: coach.value_caption, color: 'var(--ink)' });
+            }
+            if (coach.saving_headline) {
+                cells.push({ h: coach.saving_headline, l: coach.saving_label, c: coach.saving_caption, color: 'var(--green)' });
+            }
+
+            const MINI_C = 170; // 2πr, r=27
+            const dims = coach.dimension_scores || [];
+            metrics.innerHTML = `
+                ${cells.length ? `
+                    <div class="stat-grid cols-${cells.length} reveal">
+                        ${cells.map(x => `
+                            <div class="stat-cell">
+                                <div class="stat-headline" style="color:${x.color}">${esc(x.h)}</div>
+                                <div class="stat-label">${esc(x.l)}</div>
+                                <div class="stat-caption">${esc(x.c)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                ${dims.length ? `
+                    <div class="dim-grid reveal">
+                        ${dims.map(d => `
+                            <div class="dim-cell">
+                                <div class="ring">
+                                    <svg viewBox="0 0 62 62">
+                                        <circle cx="31" cy="31" r="27" fill="none" stroke="var(--ring-track)" stroke-width="5"/>
+                                        <circle cx="31" cy="31" r="27" fill="none"
+                                                stroke="${scoreColor(d.score)}" stroke-width="5" stroke-linecap="round"
+                                                stroke-dasharray="${MINI_C}"
+                                                stroke-dashoffset="${MINI_C - (MINI_C * d.score / 100)}"/>
+                                    </svg>
+                                    <div class="num" style="color:${scoreColor(d.score)}">${d.score}</div>
+                                </div>
+                                <div class="lbl">${esc(d.label)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+            `;
+
+            renderChallengeBanner(coach);
+        }
+
+        /* 连接失败态: 区别于「你还没有数据」, 不把基建故障甩锅给用户 */
+        function revealError() {
+            stopScanAnimation();
+            const num = document.getElementById('scoreNum');
+            const ring = document.getElementById('ringValue');
+            num.textContent = '—';
+            num.style.color = 'var(--ink-3)';
+            ring.style.stroke = 'var(--ring-track)';
+            ring.style.strokeDashoffset = 666;
+            document.getElementById('heroInfo').innerHTML = `
+                <div class="tier-title">连接失败</div>
+                <div class="tier-verdict">服务暂时连不上</div>
+                <div class="encourage">可能是服务正在唤醒,稍等片刻再试。
+                <button class="btn-secondary" style="margin-left:8px;" onclick="runCheckup()">重试</button></div>`;
+            document.getElementById('heroMetrics').innerHTML = '';
+        }
+
+        /* ===== 挑战横幅 (裂变: 分享链接带 ?challenge=分数) ===== */
+
+        function renderChallengeBanner(coach) {
+            const params = new URLSearchParams(location.search);
+            const ch = parseInt(params.get('challenge'), 10);
+            const el = document.getElementById('challengeBanner');
+            if (!el || !ch || ch < 0 || ch > 100) return;
+            if (!coach) {
+                // 新访客(还没同步): 挑战链接也要有落点, 引导他测出自己的分数应战
+                el.innerHTML = `<div class="challenge-banner">⚔️ 好友以 <strong>${ch} 分</strong>向你发起挑战——同步一次测出你的分数,把成绩单甩回去</div>`;
+                return;
+            }
+            const mine = coach.score;
+            let text;
+            if (mine > ch) text = `⚔️ 好友以 <strong>${ch} 分</strong>向你发起挑战——你 <strong>${mine} 分</strong>,赢了！把成绩单甩回去`;
+            else if (mine === ch) text = `⚔️ 好友以 <strong>${ch} 分</strong>向你发起挑战——你们打平,谁先优化谁赢`;
+            else text = `⚔️ 好友以 <strong>${ch} 分</strong>向你发起挑战——你 <strong>${mine} 分</strong>,差 ${ch - mine} 分,照方案修完再战`;
+            el.innerHTML = `<div class="challenge-banner">${text}</div>`;
+        }
+
+        /* ===== 分享成绩单 (canvas 生成图片,360 式截图裂变) ===== */
+
+        let lastCoach = null;
+
+        function shareScore() {
+            const c = lastCoach;
+            if (!c) return;
+            const W = 1080, H = 1350;
+            const cv = document.createElement('canvas');
+            cv.width = W; cv.height = H;
+            const ctx = cv.getContext('2d');
+
+            // 背景渐变 (与 coach-hero 同款)
+            const g = ctx.createLinearGradient(0, 0, W, H);
+            g.addColorStop(0, '#1e3a8a'); g.addColorStop(0.55, '#7c3aed'); g.addColorStop(1, '#db2777');
+            ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+            ctx.fillStyle = 'rgba(255,255,255,0.85)';
+            ctx.textAlign = 'center';
+            ctx.font = '600 44px -apple-system, "PingFang SC", sans-serif';
+            ctx.fillText('365 AI Master · AI 使用体检', W / 2, 130);
+
+            // 分数环
+            const cx = W / 2, cy = 480, r = 230;
+            ctx.lineWidth = 34; ctx.lineCap = 'round';
+            ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+            ctx.strokeStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * c.score / 100);
+            ctx.stroke();
+
+            ctx.fillStyle = '#fff';
+            ctx.font = '200 210px -apple-system, "SF Pro Display", sans-serif';
+            ctx.fillText(String(c.score), cx, cy + 70);
+            ctx.font = '500 34px -apple-system, "PingFang SC", sans-serif';
+            ctx.fillStyle = 'rgba(255,255,255,0.75)';
+            ctx.fillText('AI 健康分', cx, cy + 130);
+
+            // 段位 + 排名
+            ctx.fillStyle = '#fff';
+            ctx.font = '700 64px -apple-system, "PingFang SC", sans-serif';
+            ctx.fillText(c.title_text || '', cx, 860);
+            ctx.font = '400 38px -apple-system, "PingFang SC", sans-serif';
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.fillText('🏆 ' + (c.beat_ratio_text || ''), cx, 935);
+
+            // 四维
+            const dims = c.dimension_scores || [];
+            const dw = W / (dims.length + 1);
+            ctx.font = '300 56px -apple-system, sans-serif';
+            dims.forEach((d, i) => {
+                const x = dw * (i + 1);
+                ctx.fillStyle = '#fff';
+                ctx.fillText(String(d.score), x, 1060);
+                ctx.font = '400 26px -apple-system, "PingFang SC", sans-serif';
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.fillText(d.label, x, 1105);
+                ctx.font = '300 56px -apple-system, sans-serif';
+            });
+
+            // 挑战语 + 链接
+            ctx.fillStyle = 'rgba(255,255,255,0.95)';
+            ctx.font = '500 36px -apple-system, "PingFang SC", sans-serif';
+            ctx.fillText('敢不敢来比一比你的 AI 用得多溜？', cx, 1210);
+            ctx.font = '400 30px -apple-system, sans-serif';
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            ctx.fillText(location.origin + '/?challenge=' + c.score, cx, 1270);
+
+            cv.toBlob(blob => {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `365-ai-master-${c.score}分.png`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            }, 'image/png');
+        }
+
+        /* ===== 各板块渲染 ===== */
+
+        function sectionDims(c) {
+            if (!c.dimension_scores || !c.dimension_scores.length) return '';
+            return `
+                <section class="section reveal">
+                    <div class="section-head">
+                        <div class="section-title">分项体检</div>
+                        <div class="section-sub">四个维度,像体检报告一样看你的 AI 使用</div>
+                    </div>
+                    <div class="dims">
+                        ${c.dimension_scores.map(d => {
+                            const C = 220; // 2πr, r=35
+                            return `
+                                <div class="dim-card">
+                                    <div class="dim-ring">
+                                        <svg width="84" height="84" viewBox="0 0 84 84">
+                                            <circle cx="42" cy="42" r="35" fill="none" stroke="var(--ring-track)" stroke-width="7"/>
+                                            <circle class="val" cx="42" cy="42" r="35" fill="none"
+                                                    stroke="${scoreColor(d.score)}" stroke-width="7"
+                                                    stroke-dasharray="${C}"
+                                                    stroke-dashoffset="${C}"
+                                                    data-target="${C - (C * d.score / 100)}"/>
+                                        </svg>
+                                        <div class="dim-score" style="color:${scoreColor(d.score)}">${d.score}</div>
+                                    </div>
+                                    <div class="dim-label">${esc(d.label)}</div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </section>
+            `;
+        }
+
+        function sectionIssues(c) {
+            const issues = c.issues || [];
+            const inner = issues.length === 0 ? `
+                <div class="all-clear">
+                    <span class="mark">✓</span>
+                    未发现明显问题。保持当前用法,把注意力放在沉淀和复利上。
+                </div>
+            ` : issues.map((it, i) => `
+                <div class="issue" id="issue-${i}">
+                    <button class="issue-row" onclick="gotoPlan(${i})" title="查看修复方案">
+                        <span class="dot ${esc(it.severity)}"></span>
+                        <span class="issue-body-inline">
+                            <span class="issue-title">${esc(it.title)}</span>
+                            <span class="issue-detail">${esc(it.detail)}</span>
+                        </span>
+                        <span class="issue-dim">${esc(it.dimension)}</span>
+                        <span class="chev">›</span>
+                    </button>
+                </div>
+            `).join('');
+
+            return `
+                <section class="section reveal">
+                    <div class="section-head">
+                        <div class="section-title">体检发现</div>
+                        <div class="section-sub">${issues.length ? `${issues.length} 个可优化项,点任意一条直达修复方案` : ''}</div>
+                    </div>
+                    <div class="card" style="padding: 6px 20px;">${inner}</div>
+                </section>
+            `;
+        }
+
+        function gotoPlan(i) {
+            location.hash = '#plan';
+            setTimeout(() => {
+                document.getElementById(`exec-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 120);
+        }
+
+        async function loadOptimization(btn) {
+            btn.disabled = true;
+            btn.textContent = '正在生成你的专属规则…';
+            try {
+                const token = getDeviceToken();
+                const res = await fetch(`${API_URL}/api/v1/coach/optimize?token=${encodeURIComponent(token)}`, { mode: 'cors' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                // 360 式成就反馈: 每张执行卡打上"已写入规则"
+                const n = document.querySelectorAll('.exec-card').length;
+                document.querySelectorAll('.exec-card .exec-title').forEach(t => {
+                    if (!t.querySelector('.fixed-tag')) {
+                        t.insertAdjacentHTML('beforeend', '<span class="fixed-tag">✓ 已写入规则</span>');
+                    }
+                });
+                document.getElementById('optimizeResult').innerHTML = `
+                    <div class="card" style="margin-top:16px;">
+                        <div class="section-title" style="font-size:16px; margin-bottom:8px;">
+                            🎉 已为上面 ${n} 个问题生成规则配置
+                        </div>
+                        <div class="section-sub" style="margin-bottom:12px; line-height:1.8;">
+                            下面这段文字就是解决方案本身。<br>
+                            <strong>怎么用:</strong> 点「复制全部」,粘贴到你 AI 助手的「规则文件」里——
+                            用 Claude Code 的贴进 CLAUDE.md,用 Codex 的贴进 AGENTS.md。<br>
+                            AI 从下一次对话起就会自动照做,你自己的习惯一点不用改。<br>
+                            <span style="color:var(--ink-3);">装过我们小工具的用户更省事: 打开「终端」App 运行
+                            <code>agentfit optimize --apply</code>,连复制都不用。</span>
+                        </div>
+                        <pre class="install-cmd" id="optMd" style="white-space:pre-wrap; max-height:320px; overflow-y:auto; font-size:12px; line-height:1.6;">${esc(data.markdown)}</pre>
+                        <div style="margin-top:10px; display:flex; gap:8px;">
+                            <button class="copy-btn" onclick="copyOptimization(this)">复制全部</button>
+                        </div>
+                    </div>
+                `;
+                btn.textContent = '✓ 修复配置已生成';
+            } catch (e) {
+                btn.textContent = '生成失败,点击重试';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function copyOptimization(btn) {
+            navigator.clipboard.writeText(document.getElementById('optMd').textContent).then(() => {
+                btn.textContent = '已复制';
+                setTimeout(() => { btn.textContent = '复制全部'; }, 1500);
+            });
+        }
+
+        function sectionActionPlan(c) {
+            const issues = c.issues || [];
+            if (!issues.length) {
+                return `
+                    <div class="plan-banner">
+                        <div class="t">✓ 当前没有待修复的问题</div>
+                        <div class="s">保持现有用法,把注意力放在高频任务的沉淀复用上</div>
+                    </div>
+                `;
+            }
+            const goalText = { C: '冲击 B 段', B: '冲击 A 段', A: '冲击 S 段', S: '守住 S 段' }[c.tier] || '冲击更高段位';
+            return `
+                <div class="plan-banner reveal">
+                    <div class="t">本周目标: 修复 ${issues.length} 个问题,${goalText}</div>
+                    <div class="s">每张卡片都是一套可直接执行的步骤——照做即可,做完点「重新体检」验证效果</div>
+                </div>
+                ${issues.map((it, i) => `
+                    <div class="exec-card reveal" id="exec-${i}">
+                        <div class="exec-head">
+                            <span class="dot ${esc(it.severity)}"></span>
+                            <span class="exec-title">${i + 1}. ${esc(it.title)}</span>
+                            <span class="exec-impact">${esc(it.impact)}</span>
+                        </div>
+                        <div class="exec-detail">${esc(it.detail)}</div>
+                        <div class="step-list">
+                            ${(it.steps && it.steps.length ? it.steps : [it.fix]).map((s, j) => `
+                                <div class="step">
+                                    <span class="step-no">${j + 1}</span>
+                                    <span class="step-text">${esc(s)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+                <div style="text-align:center; margin: 4px 0 8px;">
+                    <button class="recheck" style="font-size:15px; padding:12px 28px;"
+                            id="optimizeBtn" onclick="loadOptimization(this)">⚡ 让 AI 自动照做 (生成规则配置)</button>
+                    <div class="section-sub" style="margin-top:8px;">
+                        不想逐条手动改? 生成一份规则配置贴进 AI 的规则文件,以上步骤它会自动遵守
+                    </div>
+                </div>
+                <div id="optimizeResult"></div>
+            `;
+        }
+
+        function sectionRouting(c) {
+            return `
+                <section class="section reveal">
+                    <div class="section-head">
+                        <div class="section-title">模型路由</div>
+                        <div class="section-sub">什么任务用什么模型</div>
+                    </div>
+                    <div class="card">
+                        <div class="diag-note">${esc(c.routing_diagnosis)}</div>
+                        <div style="overflow-x:auto;">
+                        <table class="route-table">
+                            <tr><th>任务类型</th><th>推荐模型</th><th>原因</th></tr>
+                            ${c.model_routing.map(r => `
+                                <tr>
+                                    <td>${esc(r.task)}</td>
+                                    <td>
+                                        <span class="model-tag">${esc(r.recommended_model)}</span>
+                                        ${r.est_saving_pct ? `<div class="save-tag">省约 ${r.est_saving_pct}%</div>` : ''}
+                                    </td>
+                                    <td style="color: var(--ink-2);">${esc(r.reason)}</td>
+                                </tr>
+                            `).join('')}
+                        </table>
+                        </div>
+                    </div>
+                </section>
+            `;
+        }
+
+        function sectionTime(c) {
+            const h = c.hourly_histogram;
+            const peaks = c.peak_hours || [];
+            let chart = '';
+            if (h && h.length === 24) {
+                const max = Math.max(...h, 1);
+                chart = `
+                    <div class="hour-bars">
+                        ${h.map((v, i) => `
+                            <div class="hour-bar ${peaks.includes(i) ? 'peak' : v > 0 ? 'lit' : ''}"
+                                 style="height:${Math.max(3, Math.round(v / max * 100))}%"
+                                 title="${i}点 · ${v} 次"></div>
+                        `).join('')}
+                    </div>
+                    <div class="hour-labels"><span>0</span><span>6</span><span>12</span><span>18</span><span>23 时</span></div>
+                `;
+            }
+            return `
+                <section class="section reveal">
+                    <div class="section-head">
+                        <div class="section-title">时间习惯</div>
+                        <div class="section-sub">什么时间怎么用</div>
+                    </div>
+                    <div class="card">
+                        ${chart}
+                        ${(c.time_insights || []).map(t => `
+                            <div class="insight"><span class="p">${esc(t.pattern)}</span>${esc(t.advice)}</div>
+                        `).join('')}
+                    </div>
+                </section>
+            `;
+        }
+
+        function sectionGoal(c) {
+            return `
+                <section class="section reveal">
+                    <div class="section-head">
+                        <div class="section-title">目标与路径</div>
+                        <div class="section-sub">你到底想要什么,下一步怎么走</div>
+                    </div>
+                    <div class="card">
+                        <div class="goal-quote">${esc(c.goal_inference)}</div>
+                        <div class="path-text">${esc(c.path_advice)}</div>
+                    </div>
+                </section>
+            `;
+        }
+
+        function sectionTrend(data) {
+            const weeks = data.weeks || [];
+            const improvements = data.improvements_this_month || [];
+            const trend = data.overall_trend || 'insufficient_data';
+            const trendLabel = { improving: '↗ 上升', stable: '→ 稳定', degrading: '↘ 下降', insufficient_data: '数据积累中' }[trend] || trend;
+
+            return `
+                <section class="section reveal">
+                    <div class="section-head">
+                        <div class="section-title">30 日趋势 <span class="trend-tag trend-${esc(trend)}">${trendLabel}</span></div>
+                        <div class="section-sub">${esc(data.summary_text || '')}</div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="card">
+                            <div class="metric-grid">
+                                <div class="metric"><div class="v">${weeks.length}</div><div class="l">累计周数</div></div>
+                                <div class="metric"><div class="v">${weeks.length ? Math.round(weeks[weeks.length-1].avg_score) : '—'}</div><div class="l">本周分数</div></div>
+                                <div class="metric"><div class="v">${weeks.length > 1 ? Math.round(weeks[weeks.length-1].avg_score - weeks[0].avg_score) : 0}</div><div class="l">月度变化</div></div>
+                                <div class="metric"><div class="v">${improvements.length}</div><div class="l">已验证的改进</div></div>
+                            </div>
+                            <div style="margin-top: 14px;">
+                                ${weeks.map((w, i) => `
+                                    <div class="stat-row">
+                                        <span class="k">第 ${i + 1} 周</span>
+                                        <span class="v">${Math.round(w.avg_score)} 分 · 折算 $${w.total_cost.toFixed(1)}</span>
+                                    </div>
+                                `).join('') || '<div class="empty-note">数据积累中</div>'}
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="section-sub" style="margin-bottom: 8px;">修复效果验证</div>
+                            ${improvements.length ? improvements.map(im => `
+                                <div class="improvement">
+                                    <div class="t">✓ ${esc(im.rule_title)}</div>
+                                    <div class="d">${esc(im.before_metric)} → ${esc(im.after_metric)} · 节省约 ${(im.tokens_saved / 10000).toFixed(0)} 万 token</div>
+                                </div>
+                            `).join('') : `
+                                <div class="empty-note">按修复方案执行后,改善会在这里被验证并记录</div>
+                            `}
+                        </div>
+                    </div>
+                </section>
+            `;
+        }
+
+        function revealSections() {
+            const els = document.querySelectorAll('.reveal');
+            els.forEach((el, i) => setTimeout(() => el.classList.add('show'), 150 + i * 120));
+            // 分项环动画
+            document.querySelectorAll('.dim-ring .val').forEach(el => {
+                requestAnimationFrame(() => {
+                    el.style.strokeDashoffset = el.dataset.target;
+                });
+            });
+        }
+
+        /* ===== 大师推荐页 ===== */
+
+        const KIND_LABEL = { tip: '使用技巧', skill: 'Skill 推荐', agent: 'Agent 用法', security: '安全提醒', product: '新品甄别' };
+
+        /* ===== 全部技能库: 已读追踪 + 分类筛选 ===== */
+
+        const READ_KEY = 'AGENTFIT_READ_TIPS';
+        let libraryData = null;
+        let libFilter = 'all';
+        let libShown = [];
+
+        function getReadSet() {
+            try {
+                return new Set(JSON.parse(localStorage.getItem(READ_KEY) || '[]'));
+            } catch (e) {
+                return new Set();
+            }
+        }
+
+        function markRead(title) {
+            const s = getReadSet();
+            s.add(title);
+            try { localStorage.setItem(READ_KEY, JSON.stringify([...s])); } catch (e) {}
+        }
+
+        async function loadLibrary() {
+            if (libraryData) { renderLibrary(); return; }
+            const el = document.getElementById('libraryBody');
+            el.innerHTML = '<div class="empty-note">加载中…</div>';
+            try {
+                const res = await fetch(`${API_URL}/api/v1/master/library`, { mode: 'cors' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                libraryData = await res.json();
+                renderLibrary();
+            } catch (e) {
+                el.innerHTML = '<div class="empty-note">技能库加载失败,稍后重试</div>';
+            }
+        }
+
+        function renderLibrary() {
+            const el = document.getElementById('libraryBody');
+            if (!libraryData) return;
+            const read = getReadSet();
+            const groups = libraryData.groups || [];
+            const all = groups.flatMap(g => g.items.map(i => ({ ...i, _label: g.label })));
+            const readCount = all.filter(i => read.has(i.title)).length;
+            const pct = all.length ? Math.round(readCount / all.length * 100) : 0;
+            const shown = libFilter === 'all' ? all : all.filter(i => i.kind === libFilter);
+            libShown = shown;  // toggleLib 按索引查,避免把标题拼进 onclick
+
+            el.innerHTML = `
+                <div class="lib-filters">
+                    <button class="lib-chip ${libFilter === 'all' ? 'active' : ''}" onclick="setLibFilter('all')">全部 ${all.length}</button>
+                    ${groups.map(g => `
+                        <button class="lib-chip ${libFilter === g.kind ? 'active' : ''}" onclick="setLibFilter('${esc(g.kind)}')">${esc(g.label)} ${g.items.length}</button>
+                    `).join('')}
+                </div>
+                <div class="lib-progress">
+                    <span>已读 ${readCount} / ${all.length}</span>
+                    <span class="lib-bar"><i style="width:${pct}%"></i></span>
+                    ${readCount ? `<button class="lib-chip" style="padding:4px 10px; font-size:12px;" onclick="resetRead()">清除已读</button>` : ''}
+                </div>
+                ${readCount === all.length && all.length ? `
+                    <div class="lib-done">
+                        <div class="m">✓</div>
+                        <div class="t">全库都看完了</div>
+                        <div class="d">明天会有新的今日精选;订阅日报,新内容第一时间送到</div>
+                    </div>
+                ` : ''}
+                <div class="lib-grid">
+                    ${shown.map((it, i) => `
+                        <div class="lib-item ${read.has(it.title) ? 'read' : ''}" id="lib-${i}"
+                             onclick="toggleLib(${i})">
+                            <div class="lib-item-head">
+                                <span class="tip-kind ${esc(it.kind)}" style="margin:0;">${KIND_LABEL[it.kind] || esc(it.kind)}</span>
+                                <span class="lib-item-title">${esc(it.title)}</span>
+                                ${read.has(it.title) ? '<span class="lib-read-mark">已读</span>' : ''}
+                            </div>
+                            <div class="lib-item-detail">${esc(it.detail)}</div>
+                            <div class="lib-item-meta">✓ ${esc(it.why_trust)} · 来源 ${esc(it.source)}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function setLibFilter(kind) {
+            libFilter = kind;
+            renderLibrary();
+        }
+
+        function toggleLib(i) {
+            const el = document.getElementById(`lib-${i}`);
+            const title = libShown[i]?.title;
+            if (!el || !title) return;
+            const opening = !el.classList.contains('open');
+            el.classList.toggle('open');
+            if (opening) {
+                markRead(title);
+                el.classList.add('read');
+                if (!el.querySelector('.lib-read-mark')) {
+                    el.querySelector('.lib-item-head')
+                      .insertAdjacentHTML('beforeend', '<span class="lib-read-mark">已读</span>');
+                }
+                updateLibProgress();
+            }
+        }
+
+        function updateLibProgress() {
+            if (!libraryData) return;
+            const read = getReadSet();
+            const all = (libraryData.groups || []).flatMap(g => g.items);
+            const n = all.filter(i => read.has(i.title)).length;
+            const bar = document.querySelector('.lib-bar i');
+            const label = document.querySelector('.lib-progress span');
+            if (bar) bar.style.width = `${Math.round(n / all.length * 100)}%`;
+            if (label) label.textContent = `已读 ${n} / ${all.length}`;
+            if (n === all.length) renderLibrary();  // 全部读完 → 显示完成态
+        }
+
+        function resetRead() {
+            try { localStorage.removeItem(READ_KEY); } catch (e) {}
+            renderLibrary();
+        }
+
+        function rankCard(icon, title, items) {
+            return `
+                <section class="card reveal">
+                    <div class="section-title" style="font-size:16px; margin-bottom:12px;">${icon} ${esc(title)}</div>
+                    <div class="rank-list">
+                        ${(items || []).map((r, i) => `
+                            <div class="rank-item">
+                                <div class="rank-no">${i + 1}</div>
+                                <div class="rank-body">
+                                    <div class="rank-name"><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a></div>
+                                    <div class="rank-tag">${esc(r.tagline)}</div>
+                                    <div class="rank-why">${esc(r.why)}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </section>
+            `;
+        }
+
+        function renderMaster(feed) {
+            const el = document.getElementById('report-master');
+            if (!feed) {
+                el.innerHTML = '<div class="empty-note" style="padding:60px 0;">大师推荐加载失败 <button class="btn-secondary" style="margin-left:8px;" onclick="masterLoaded=false;loadMaster()">重试</button></div>';
+                return;
+            }
+            const dm = /^\d{4}-(\d{2})-(\d{2})$/.exec(feed.date || '');
+            const d = dm ? `${+dm[1]} 月 ${+dm[2]} 日` : '';
+            el.innerHTML = `
+                <div class="page-header">
+                    <div class="icon">🧙</div>
+                    <div class="body">
+                        <h1>今日大师推荐</h1>
+                        <div class="sub">${esc(feed.persona_line)}</div>
+                    </div>
+                    <div class="meta">${esc(d)}</div>
+                </div>
+
+                <div class="band reveal">
+                    <div class="t">今日精选</div>
+                    <div class="c">${feed.tips.length} 条 · 每条都注明来源与可信依据</div>
+                </div>
+                ${feed.tips.map((t, i) => `
+                    <div class="tip-card reveal">
+                        <span class="tip-kind ${esc(t.kind)}">${KIND_LABEL[t.kind] || esc(t.kind)}</span>
+                        <div class="tip-title">${esc(t.title)}</div>
+                        <div class="tip-detail">${esc(t.detail)}</div>
+                        ${t.privacy_note ? `<div class="privacy-note">🔒 隐私提醒 · ${esc(t.privacy_note)}</div>` : ''}
+                        ${t.install ? `
+                            <div class="install-row">
+                                <code class="install-cmd" id="cmd-${i}">${esc(t.install)}</code>
+                                <button class="copy-btn" onclick="copyCmd(${i}, this)">复制</button>
+                            </div>
+                        ` : ''}
+                        <div class="tip-meta">
+                            <span>✓ ${esc(t.why_trust)}</span>
+                            <span>来源 · ${esc(t.source)}</span>
+                        </div>
+                    </div>
+                `).join('')}
+                <div class="band reveal">
+                    <div class="t">全部技能库</div>
+                    <div class="c">今日精选看完了? 这里是大师验证过的全部内容</div>
+                </div>
+                <div id="libraryBody" class="reveal"></div>
+
+                <div class="band reveal">
+                    <div class="t">今日排行榜</div>
+                    <div class="c">大师严选 · 每日轮换 · 全部真实开源项目</div>
+                </div>
+                <div class="grid-2">
+                    ${rankCard('🏆', 'Skill Top 10', feed.skill_ranking)}
+                    ${rankCard('🤖', 'Agent Top 10', feed.agent_ranking)}
+                </div>
+
+                <div class="band reveal">
+                    <div class="t">抢先订阅大师日报</div>
+                    <div class="c">日报筹备中 · 上线第一时间通知你</div>
+                </div>
+                <div class="subscribe-band reveal">
+                    <div class="copy">
+                        <div class="t">留个邮箱,大师上线就喊你</div>
+                        <div class="d">最新技巧、最强 skill、值得信的新品——只发验证过的,营销内容一律不进(发信功能开发中)</div>
+                        <div class="sub-msg" id="subMsg"></div>
+                    </div>
+                    <div class="form">
+                        <div class="subscribe-box" style="margin-top:0;">
+                            <input type="email" id="subEmail" placeholder="你的邮箱" aria-label="订阅邮箱">
+                            <button onclick="doSubscribe()">订阅</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="empty-note" style="margin-top:20px;">${esc(feed.disclaimer)}</div>
+            `;
+            // 今日精选已在上方完整展示,自动计入已读
+            (feed.tips || []).forEach(t => markRead(t.title));
+            revealSections();
+            loadLibrary();
+        }
+
+        function copyCmd(i, btn) {
+            const cmd = document.getElementById(`cmd-${i}`).textContent;
+            navigator.clipboard.writeText(cmd).then(() => {
+                btn.textContent = '已复制';
+                setTimeout(() => { btn.textContent = '复制'; }, 1500);
+            });
+        }
+
+        async function doSubscribe() {
+            const input = document.getElementById('subEmail');
+            const msg = document.getElementById('subMsg');
+            const email = input.value.trim();
+            if (!email) { msg.textContent = '请输入邮箱'; return; }
+            try {
+                const res = await fetch(`${API_URL}/api/v1/subscribe`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email }),
+                });
+                const data = await res.json();
+                msg.textContent = res.ok ? `✓ ${data.message}` : (data.detail || '订阅失败');
+            } catch (e) {
+                msg.textContent = '网络错误,稍后再试';
+            }
+        }
+
+        async function loadMaster() {
+            try {
+                const res = await fetchJSON(`${API_URL}/api/v1/master/daily`);
+                renderMaster(res.ok ? await res.json() : null);
+            } catch (e) {
+                masterLoaded = false;  // 失败后允许再次进入/点重试时重新加载(修死锁)
+                renderMaster(null);
+            }
+        }
+
+        /* ===== Pro 服务页 ===== */
+
+        const CONTACT = 'mailto:t@tonyzhao.com?subject=';
+
+        function renderPro() {
+            document.getElementById('report-pro').innerHTML = `
+                <div class="page-header">
+                    <div class="body">
+                        <h1>把大师请进你的工作流</h1>
+                        <div class="sub">免费版给你体检和方向,Pro 帮你把「需要技术基础才能做到的事」直接做完。</div>
+                    </div>
+                </div>
+
+                <div class="price-grid">
+                    <div class="price-card">
+                        <div class="price-tier">免费</div>
+                        <div class="price-num">$0</div>
+                        <div class="price-desc">自己动手,大师指路</div>
+                        <ul class="price-feats">
+                            <li>AI 健康体检与四维分项</li>
+                            <li>问题清单与分步修复方案</li>
+                            <li>模型路由与时间习惯建议</li>
+                            <li>每日大师推荐与排行榜</li>
+                        </ul>
+                        <a class="price-cta" href="#checkup">立即体检</a>
+                    </div>
+                    <div class="price-card featured">
+                        <div class="price-badge">最受欢迎</div>
+                        <div class="price-tier">Pro · 创始会员</div>
+                        <div class="price-num">$12<small> / 年</small></div>
+                        <div class="price-desc">锁定未来全部 Pro 功能,支持它做下去</div>
+                        <ul class="price-feats">
+                            <li>现有全部功能永久免费使用</li>
+                            <li>自动生成专属规则文件 (CLAUDE.md / AGENTS.md 通用)</li>
+                            <li>未来 Pro 功能上线即免费解锁,创始价永久锁定</li>
+                            <li style="opacity:.6;">🔨 开发中(尚未上线): 每周深度报告 · Skill 清理 · 新品优先推送</li>
+                        </ul>
+                        <a class="price-cta" href="javascript:void(0)" id="proCta" onclick="upgradePro(this)">成为创始会员</a>
+                    </div>
+                    <div class="price-card">
+                        <div class="price-tier">大师私教</div>
+                        <div class="price-num is-text">定制报价</div>
+                        <div class="price-desc">真人 + AI 私教 · 企业级由 XINL 承接</div>
+                        <ul class="price-feats">
+                            <li>付费问答: 卡点直接问,当天回复</li>
+                            <li>按你的业务定制专属 Agent 与工作流</li>
+                            <li>从需求分析到交付上线全程陪跑</li>
+                            <li>团队 AI 能力建设咨询</li>
+                        </ul>
+                        <a class="price-cta" href="${CONTACT}365%20AI%20Master%20私教咨询">预约咨询</a>
+                    </div>
+                </div>
+
+                <div class="band">
+                    <div class="t">你可以放心的三件事</div>
+                </div>
+                <div class="trust-grid">
+                    <div class="trust-cell">
+                        <div class="t">不存提示词内容</div>
+                        <div class="d">只上报聚合数字 (分数、用量、模型分布),不上报任何对话内容或明文路径</div>
+                    </div>
+                    <div class="trust-cell">
+                        <div class="t">随时可退</div>
+                        <div class="d">创始会员年费一次性,随时可取消续费,不锁定合约</div>
+                    </div>
+                    <div class="trust-cell">
+                        <div class="t">推荐不恰饭</div>
+                        <div class="d">排行榜与技巧全部人工甄别并注明来源,营销内容一律不收</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function upgradePro(btn) {
+            btn.textContent = '正在打开支付…';
+            try {
+                const res = await fetch(`${API_URL}/api/v1/billing/checkout`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: '{}',
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    window.location.href = data.url;
+                    return;
+                }
+                // Stripe 未配置或暂不可用: 回退到早鸟名单
+                window.location.href = `${CONTACT}365%20AI%20Master%20创始会员%20早鸟`;
+            } catch (e) {
+                window.location.href = `${CONTACT}365%20AI%20Master%20创始会员%20早鸟`;
+            } finally {
+                btn.textContent = '升级 Pro';
+            }
+        }
+
+        /* ===== 路由 ===== */
+
+        const PAGES = ['checkup', 'master', 'plan', 'pro'];
+        let masterLoaded = false;
+
+        function route() {
+            const hash = location.hash.replace('#', '') || 'checkup';
+            const page = PAGES.includes(hash) ? hash : 'checkup';
+            PAGES.forEach(p => {
+                document.getElementById(`page-${p}`).hidden = (p !== page);
+            });
+            document.querySelectorAll('.tab').forEach(t => {
+                t.classList.toggle('active', t.dataset.tab === page);
+            });
+            document.getElementById('recheckBtn').style.visibility =
+                page === 'checkup' ? 'visible' : 'hidden';
+            if (page === 'master' && !masterLoaded) {
+                masterLoaded = true;
+                loadMaster();
+            }
+        }
+
+        window.addEventListener('hashchange', route);
+
+        /* ===== 体检主流程 ===== */
+
+        let checking = false;
+
+        async function runCheckup() {
+            if (checking) return;  // 体检进行中,忽略重复点击
+            checking = true;
+            try {
+                const token = getDeviceToken();
+                document.getElementById('report-checkup').innerHTML = '';
+                document.getElementById('report-plan').innerHTML =
+                    '<div class="empty-note" style="padding:60px 0;">先完成体检,优化方案会在这里生成</div>';
+
+                // 无 token: 从未同步过, 不请求任何数据, 直接进引导空态
+                // (杜绝旧行为——把陌生人的全局最新数据当成"你的"展示)
+                if (!token) {
+                    lastCoach = null;
+                    revealScore(null);
+                    return;
+                }
+
+                startScanAnimation();
+                const minDelay = new Promise(r => setTimeout(r, 2300));
+
+                let coach = null, analytics = null, netError = false;
+                try {
+                    const [coachRes, aRes] = await Promise.all([
+                        fetchJSON(`${API_URL}/api/v1/coach/mine?token=${encodeURIComponent(token)}`),
+                        fetchJSON(`${API_URL}/api/v1/analytics/30day?token=${encodeURIComponent(token)}`),
+                    ]);
+                    if (coachRes.ok) coach = await coachRes.json();
+                    else if (coachRes.status !== 404) netError = true;  // 404=该设备暂无数据(正常空态); 其它=真故障
+                    if (aRes.ok) analytics = await aRes.json();
+                } catch (e) {
+                    netError = true;  // 网络失败(超时/断连)
+                }
+
+                await minDelay;
+                lastCoach = coach;
+                if (!coach && netError) {
+                    revealError();  // 连接失败: 不误导成"你还没有数据"
+                    return;
+                }
+                revealScore(coach);
+
+                let checkupHtml = '', planHtml = '';
+                if (coach) {
+                    checkupHtml += sectionIssues(coach);
+                    planHtml += sectionActionPlan(coach);
+                    planHtml += sectionRouting(coach);
+                    planHtml += sectionTime(coach);
+                    planHtml += sectionGoal(coach);
+                }
+                if (analytics) planHtml += sectionTrend(analytics);
+                if (!planHtml) planHtml = '<div class="empty-note" style="padding:60px 0;">先完成体检,优化方案会在这里生成</div>';
+                document.getElementById('report-checkup').innerHTML = checkupHtml;
+                document.getElementById('report-plan').innerHTML = planHtml;
+                revealSections();
+            } finally {
+                checking = false;
+            }
+        }
+
+        route();
+        renderPro();
+        runCheckup();
+    </script>
+</body>
+</html>

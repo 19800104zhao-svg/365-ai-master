@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "365aimaster"
+version = "0.2.0"
+description = "AI usage health check for Claude Code & Codex — score your AI coding habits, get a fix plan, verify you improved."
+authors = [
+    {name = "Kenichi", email = "t@tonyzhao.com"}
+]
+requires-python = ">=3.11"
+# CLI 运行时的真实依赖只有这两个(storage 用标准库 sqlite3)。
+# 后端依赖挪到 optional [server],让 `pip install 365aimaster` / uvx 保持轻量,
+# 不再拖 fastapi/sqlalchemy/psycopg2-binary(后者在无 pg 的机器上装易失败)。
+dependencies = [
+    "typer>=0.9",
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "ruff>=0.1.0",
+]
+# 自托管云端后端(cloud/)时才需要;Railway 部署实际走 requirements.txt。
+server = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "pydantic-settings>=2.0",
+    "sqlalchemy>=2.0",
+    "psycopg2-binary>=2.9",
+    "python-multipart>=0.0.6",
+    "stripe>=7.0",
+]
+
+[project.scripts]
+365aimaster = "agentfit.cli:app"
+agentfit = "agentfit.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agentfit*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"
