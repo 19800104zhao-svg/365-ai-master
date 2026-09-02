@@ -91,7 +91,7 @@ def test_percentile_query_single_score(client):
         "tier": "B",
         "total_tokens_7d": 1_000_000,
         "total_cost_7d": 5.0,
-        "rule_hits": {}
+        "rule_hits": {}, "device_token": "dev-70"
     }
     submit_response = client.post("/api/v1/submit", json=submit_payload)
     assert submit_response.status_code == 201
@@ -116,7 +116,7 @@ def test_percentile_query_multiple_scores(client):
             "tier": "B",
             "total_tokens_7d": 1_000_000,
             "total_cost_7d": 5.0,
-            "rule_hits": {}
+            "rule_hits": {}, "device_token": f"dev-{score}"
         }
         response = client.post("/api/v1/submit", json=payload)
         assert response.status_code == 201
@@ -139,7 +139,7 @@ def test_percentile_query_ranking_tier(client):
             "tier": "B",
             "total_tokens_7d": 1_000_000,
             "total_cost_7d": 5.0,
-            "rule_hits": {}
+            "rule_hits": {}, "device_token": f"dev-{score}"
         }
         client.post("/api/v1/submit", json=payload)
 
@@ -176,7 +176,7 @@ def test_stats_endpoint(client):
             "tier": "B",
             "total_tokens_7d": 1_000_000,
             "total_cost_7d": 5.0,
-            "rule_hits": {}
+            "rule_hits": {}, "device_token": f"dev-{score}"
         }
         client.post("/api/v1/submit", json=payload)
 

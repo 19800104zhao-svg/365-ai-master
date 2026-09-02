@@ -90,7 +90,7 @@ def test_percentile_boundary_cases(temp_db):
             tier="B",
             total_tokens_7d=1_000_000,
             total_cost_7d=5.0,
-            rule_hits={}
+            rule_hits={}, device_token=f"dev-{s}"
         )
         assert temp_db.save_aggregated_score(score) is True
 
@@ -135,7 +135,7 @@ def test_statistics_calculation(temp_db):
             score=score,
             tier="B",
             total_tokens_7d=tokens,
-            total_cost_7d=cost
+            total_cost_7d=cost, device_token=f"dev-{score}"
         )
         assert temp_db.save_aggregated_score(agg) is True
 
@@ -183,7 +183,7 @@ def test_score_distribution(temp_db):
     """Test score distribution bucketing."""
     # Insert scores in different buckets
     for score in [15, 35, 55, 75, 95]:
-        agg = AggregatedScore(score=score, tier="B", total_tokens_7d=1_000_000, total_cost_7d=5.0)
+        agg = AggregatedScore(score=score, tier="B", total_tokens_7d=1_000_000, total_cost_7d=5.0, device_token=f"dev-{score}")
         assert temp_db.save_aggregated_score(agg) is True
 
     dist = temp_db.get_score_distribution()

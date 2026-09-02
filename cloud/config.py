@@ -68,3 +68,12 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Fail fast instead of silently falling back to ephemeral SQLite in production:
+# on Railway the container filesystem is wiped on every deploy, so a missing
+# DATABASE_URL would mean "service is green, all user data gone" with no alarm.
+if os.getenv("RAILWAY_ENVIRONMENT") and not os.getenv("DATABASE_URL"):
+    raise RuntimeError(
+        "DATABASE_URL is not set in a Railway environment. Refusing to start with "
+        "ephemeral SQLite — attach the Postgres service or set DATABASE_URL."
+    )

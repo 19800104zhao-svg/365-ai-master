@@ -230,7 +230,7 @@ def test_small_sample_beat_text_uses_rank(engine):
     coach, db = engine
     for s in [40, 60, 90]:
         db.save_aggregated_score(
-            AggregatedScore(score=s, tier="B", total_tokens_7d=100, total_cost_7d=1.0)
+            AggregatedScore(score=s, tier="B", total_tokens_7d=100, total_cost_7d=1.0, device_token=f"dev-{s}")
         )
     report = coach.generate_report(
         score=70, tier="B", total_tokens_7d=100, total_cost_7d=1.0
@@ -373,7 +373,7 @@ def test_full_report_generation(engine):
     # 造一些同行数据
     for s in [40, 55, 60, 70, 90]:
         db.save_aggregated_score(
-            AggregatedScore(score=s, tier="B", total_tokens_7d=1_000_000, total_cost_7d=10.0)
+            AggregatedScore(score=s, tier="B", total_tokens_7d=1_000_000, total_cost_7d=10.0, device_token=f"dev-{s}")
         )
 
     report = coach.generate_report(

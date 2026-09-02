@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e3a8a"/>
+      <stop offset="0.55" stop-color="#7c3aed"/>
+      <stop offset="1" stop-color="#db2777"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="230" cy="315" r="150" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="26"/>
+  <path d="M230 165 A150 150 0 1 1 100 228" fill="none" stroke="#ffffff" stroke-width="26" stroke-linecap="round"/>
+  <text x="230" y="340" font-family="Helvetica, Arial, sans-serif" font-size="120" font-weight="200" fill="#ffffff" text-anchor="middle">82</text>
+  <text x="230" y="392" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="rgba(255,255,255,0.75)" text-anchor="middle">AI HEALTH SCORE</text>
+  <text x="440" y="250" font-family="Helvetica, Arial, sans-serif" font-size="72" font-weight="700" fill="#ffffff">365 AI Master</text>
+  <text x="442" y="310" font-family="Helvetica, Arial, sans-serif" font-size="32" fill="rgba(255,255,255,0.92)">AI usage health check for Claude Code &amp; Codex</text>
+  <text x="442" y="372" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="rgba(255,255,255,0.78)">Score your AI coding habits · Get a fix plan · Verify you improved</text>
+  <text x="442" y="470" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="rgba(255,255,255,0.7)">Open source · Privacy-first · No prompts ever uploaded</text>
+</svg>

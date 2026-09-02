@@ -161,28 +161,55 @@ class DatabaseEngine:
         finally:
             session.close()
 
+    def _latest_per_device(self, session) -> list:
+        """每台设备只取最近一次提交 — 排名/统计的唯一口径。
+
+        为什么: 每日自动 sync 让一个人 30 天贡献 30 行, 若按行数算,
+        "打败全球 X%" 的分母是提交数而不是人数, 数字站不住。
+        无 device_token 的旧记录 (身份修复前 / 探针) 一律不计入。
+        """
+        rows = (
+            session.query(
+                ScoreRecord.device_token,
+                ScoreRecord.score,
+                ScoreRecord.tier,
+                ScoreRecord.total_tokens_7d,
+                ScoreRecord.total_cost_7d,
+            )
+            .filter(ScoreRecord.device_token.isnot(None))
+            .order_by(
+                ScoreRecord.device_token,
+                ScoreRecord.submitted_at.desc(),
+                ScoreRecord.id.desc(),
+            )
+            .all()
+        )
+        latest = []
+        seen = set()
+        for row in rows:
+            if row[0] in seen:
+                continue
+            seen.add(row[0])
+            latest.append(row)
+        return latest
+
     def get_percentile_for_score(self, score: int) -> int:
-        """Calculate percentile rank (0-100) for a given score using linear interpolation."""
+        """Percentile rank (0-100) among devices (latest submission per device)."""
         session = self.SessionLocal()
         try:
-            total_count = session.query(func.count(ScoreRecord.id)).scalar() or 1
-
+            scores = [r[1] for r in self._latest_per_device(session)]
+            total_count = len(scores)
             if total_count < 2:
                 return 50  # Default to median if insufficient data
 
-            # Count records strictly below the query score
-            lower_count = session.query(func.count(ScoreRecord.id)).filter(ScoreRecord.score < score).scalar() or 0
+            lower_count = sum(1 for s in scores if s < score)
+            equal_count = sum(1 for s in scores if s == score)
 
-            # Count records equal to the query score
-            equal_count = session.query(func.count(ScoreRecord.id)).filter(ScoreRecord.score == score).scalar() or 0
-
-            # Percentile: count of lower values + half of equal values, as fraction of total
             if equal_count > 0:
                 percentile = ((lower_count + equal_count / 2.0) / total_count) * 100
             else:
                 percentile = (lower_count / total_count) * 100
 
-            # Clamp to [1, 100]
             return max(1, min(100, int(percentile)))
         finally:
             session.close()
@@ -381,24 +408,20 @@ class DatabaseEngine:
             session.close()
 
     def get_rank_for_score(self, score: int) -> int:
-        """返回该分数在全部提交中的名次 (1 = 最高分)。"""
+        """返回该分数在全部设备中的名次 (1 = 最高分, 每设备只算最近一次)。"""
         session = self.SessionLocal()
         try:
-            higher = (
-                session.query(func.count(ScoreRecord.id))
-                .filter(ScoreRecord.score > score)
-                .scalar()
-                or 0
-            )
+            higher = sum(1 for r in self._latest_per_device(session) if r[1] > score)
             return higher + 1
         finally:
             session.close()
 
     def get_statistics(self) -> Dict:
-        """Return aggregate statistics about the dataset."""
+        """Aggregate statistics over devices (latest submission per device)."""
         session = self.SessionLocal()
         try:
-            total = session.query(func.count(ScoreRecord.id)).scalar() or 0
+            latest = self._latest_per_device(session)
+            total = len(latest)
 
             if total == 0:
                 return {
@@ -407,9 +430,9 @@ class DatabaseEngine:
                     "avg_tokens_7d": 0
                 }
 
-            avg_score = session.query(func.avg(ScoreRecord.score)).scalar() or 0
-            avg_tokens = session.query(func.avg(ScoreRecord.total_tokens_7d)).scalar() or 0
-            avg_cost = session.query(func.avg(ScoreRecord.total_cost_7d)).scalar() or 0
+            avg_score = sum(r[1] for r in latest) / total
+            avg_tokens = sum(r[3] for r in latest) / total
+            avg_cost = sum(r[4] for r in latest) / total
 
             return {
                 "total_submissions": total,
@@ -421,7 +444,7 @@ class DatabaseEngine:
             session.close()
 
     def get_score_distribution(self) -> Dict[str, int]:
-        """Get distribution of scores in 20-point buckets."""
+        """Score distribution in 20-point buckets (latest submission per device)."""
         session = self.SessionLocal()
         try:
             buckets = {
@@ -432,7 +455,7 @@ class DatabaseEngine:
                 "80-100": 0
             }
 
-            records = session.query(ScoreRecord.score).all()
+            records = [(r[1],) for r in self._latest_per_device(session)]
             for (score,) in records:
                 if score < 20:
                     buckets["0-20"] += 1

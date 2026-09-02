@@ -6,13 +6,17 @@
     <title>365 AI Master — 你的 AI 超级大师</title>
     <!-- 定位: 承接官方 /insights 的下一步 —— 从"诊断"到"改善验证闭环"。
          英文 meta 服务英文渠道(X/Reddit/HN)的分享卡片与检索。
-         og:image 待发布前补一张 1200x630 静态图(需给 FastAPI 挂 StaticFiles)。 -->
+         __SITE_URL__ 由后端按 SITE_URL 环境变量替换, 域名只在一处维护。 -->
     <meta name="description" content="See your AI coding health score, get a fix plan, and verify you actually improved. /insights tells you what's wrong — 365 AI Master proves you fixed it. Health check for Claude Code & Codex usage.">
     <meta property="og:type" content="website">
     <meta property="og:title" content="365 AI Master — AI usage health check for Claude Code">
     <meta property="og:description" content="/insights tells you what's wrong — 365 proves you fixed it. Score your AI coding habits, get a fix plan, verify the before/after.">
-    <meta property="og:url" content="https://360-ai-coach-production.up.railway.app/">
+    <meta property="og:url" content="__SITE_URL__/">
+    <meta property="og:image" content="__SITE_URL__/static/og.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="__SITE_URL__/static/og.jpg">
     <meta name="twitter:title" content="365 AI Master — AI usage health check for Claude Code">
     <meta name="twitter:description" content="/insights tells you what's wrong — 365 proves you fixed it. Score, fix, verify your AI coding habits.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧙</text></svg>">
@@ -1291,12 +1295,12 @@
         }
 
         /* fetch 加超时 + 失败退避重试一次 — 治 Railway 冷启动 ERR_CONNECTION_CLOSED */
-        async function fetchJSON(url, { retries = 1, timeout = 8000 } = {}) {
+        async function fetchJSON(url, { retries = 1, timeout = 8000, headers = {} } = {}) {
             for (let attempt = 0; ; attempt++) {
                 const ctrl = new AbortController();
                 const timer = setTimeout(() => ctrl.abort(), timeout);
                 try {
-                    const res = await fetch(url, { mode: 'cors', signal: ctrl.signal });
+                    const res = await fetch(url, { mode: 'cors', signal: ctrl.signal, headers });
                     clearTimeout(timer);
                     return res;
                 } catch (e) {
@@ -1378,13 +1382,42 @@
                 num.style.color = 'var(--ink-3)';
                 ring.style.stroke = 'var(--ring-track)';
                 ring.style.strokeDashoffset = C;
+                const challenged = !!parseInt(new URLSearchParams(location.search).get('challenge'), 10);
                 info.innerHTML = `
-                    <div class="tier-title">待体检</div>
-                    <div class="tier-verdict">还没有你的使用数据</div>
-                    <div class="encourage">同步一次后,这里会显示你的专属体检结果。<br>
-                    <span style="color:var(--ink-3); font-size:13px;">已安装小工具的用户: 在「终端」App 里运行 <code>agentfit sync</code>,打开命令末尾给出的专属链接即可。</span></div>
+                    <div class="tier-title">${challenged ? '应战: 先测出你的分数' : '3 步测出你的 AI 健康分'}</div>
+                    <div class="tier-verdict">扫描本机 Claude Code / Codex 日志,只上传聚合数字,不传任何提示词</div>
+                    <div class="hero-actions">
+                        <button class="btn-secondary" onclick="showSample()">先看一份示例报告</button>
+                        <a class="btn-secondary" style="text-decoration:none; display:inline-block;" href="#master">逛逛今日大师推荐 →</a>
+                    </div>
                 `;
-                metrics.innerHTML = '';
+                metrics.innerHTML = `
+                    <div class="card reveal show" style="margin-top:4px;">
+                        <div class="step">
+                            <span class="step-no">1</span>
+                            <span class="step-text">安装小工具 (需要 Python 3.11+;推荐用 pipx,装完全局可用)
+                                <div class="install-row" style="margin-top:8px;">
+                                    <code class="install-cmd" id="cmd-install">${esc(INSTALL_CMD)}</code>
+                                    <button class="copy-btn" onclick="copyCmd('install', this)">复制</button>
+                                </div>
+                                <div style="font-size:12px; color:var(--ink-3); margin-top:6px;">没有 pipx? 用 uv 免安装直接跑: <code>${esc(UVX_CMD)}</code></div>
+                            </span>
+                        </div>
+                        <div class="step">
+                            <span class="step-no">2</span>
+                            <span class="step-text">在「终端」App 里运行一次体检并同步
+                                <div class="install-row" style="margin-top:8px;">
+                                    <code class="install-cmd" id="cmd-sync">365aimaster sync</code>
+                                    <button class="copy-btn" onclick="copyCmd('sync', this)">复制</button>
+                                </div>
+                            </span>
+                        </div>
+                        <div class="step">
+                            <span class="step-no">3</span>
+                            <span class="step-text">打开命令末尾打印的专属链接——这台电脑的数据只有你自己看得到</span>
+                        </div>
+                    </div>
+                `;
                 renderChallengeBanner(null);
                 return;
             }
@@ -1405,7 +1438,12 @@
                     ${issueCount ? `
                         <button class="btn-primary" onclick="gotoPlan(0)">查看 ${issueCount} 个问题的修复方案</button>
                     ` : ''}
-                    <button class="btn-secondary" onclick="shareScore()">分享成绩单</button>
+                    ${sampleMode ? `
+                        <button class="btn-secondary" onclick="runCheckup()">测我自己的分数 →</button>
+                    ` : `
+                        <button class="btn-secondary" onclick="shareScore(this)">分享成绩单</button>
+                        <button class="btn-secondary" onclick="copyChallengeLink(this)">复制挑战链接</button>
+                    `}
                 </div>
             `;
 
@@ -1474,6 +1512,7 @@
                 <div class="encourage">可能是服务正在唤醒,稍等片刻再试。
                 <button class="btn-secondary" style="margin-left:8px;" onclick="runCheckup()">重试</button></div>`;
             document.getElementById('heroMetrics').innerHTML = '';
+            renderChallengeBanner(null);  // 带 ?challenge= 进来的访客, 失败态也保留挑战上下文
         }
 
         /* ===== 挑战横幅 (裂变: 分享链接带 ?challenge=分数) ===== */
@@ -1499,10 +1538,25 @@
         /* ===== 分享成绩单 (canvas 生成图片,360 式截图裂变) ===== */
 
         let lastCoach = null;
+        let sampleMode = false;
 
-        function shareScore() {
+        function challengeLink(score) {
+            return location.origin + '/?challenge=' + score;
+        }
+
+        function copyChallengeLink(btn) {
             const c = lastCoach;
-            if (!c) return;
+            if (!c || sampleMode) return;
+            navigator.clipboard.writeText(challengeLink(c.score)).then(() => {
+                const old = btn.textContent;
+                btn.textContent = '已复制,发给朋友应战';
+                setTimeout(() => { btn.textContent = old; }, 2000);
+            });
+        }
+
+        function shareScore(btn) {
+            const c = lastCoach;
+            if (!c || sampleMode) return;
             const W = 1080, H = 1350;
             const cv = document.createElement('canvas');
             cv.width = W; cv.height = H;
@@ -1563,15 +1617,112 @@
             ctx.fillText('敢不敢来比一比你的 AI 用得多溜？', cx, 1210);
             ctx.font = '400 30px -apple-system, sans-serif';
             ctx.fillStyle = 'rgba(255,255,255,0.7)';
-            ctx.fillText(location.origin + '/?challenge=' + c.score, cx, 1270);
+            ctx.fillText(challengeLink(c.score), cx, 1270);
 
-            cv.toBlob(blob => {
+            cv.toBlob(async blob => {
+                const file = new File([blob], `365-ai-master-${c.score}.png`, { type: 'image/png' });
+                const link = challengeLink(c.score);
+                // 移动端: 系统分享面板 (图 + 可点击链接), 收到的人不用照着截图抄网址
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({ files: [file], text: `我的 AI 健康分 ${c.score},敢不敢来比一比? ${link}` });
+                        return;
+                    } catch (e) { /* 用户取消 → 回退下载 */ }
+                }
+                // 桌面端: 下载图片 + 把挑战链接放进剪贴板
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
-                a.download = `365-ai-master-${c.score}分.png`;
+                a.download = file.name;
                 a.click();
                 URL.revokeObjectURL(a.href);
+                try { await navigator.clipboard.writeText(link); } catch (e) {}
+                if (btn) {
+                    const old = btn.textContent;
+                    btn.textContent = '图片已下载,挑战链接已复制';
+                    setTimeout(() => { btn.textContent = old; }, 2500);
+                }
             }, 'image/png');
+        }
+
+        /* ===== 示例报告: 让还没装工具的访客先看到产品长什么样 ===== */
+
+        const INSTALL_CMD = 'pipx install git+https://github.com/19800104zhao-svg/365-ai-master.git';
+        const UVX_CMD = 'uvx --from git+https://github.com/19800104zhao-svg/365-ai-master.git 365aimaster sync';
+
+        const SAMPLE_COACH = {
+            score: 74, tier: 'B', title_text: 'AI 熟练者',
+            verdict_text: '良好 · 发现 3 个可优化项',
+            encourage_text: '基础扎实,照方案再上一层楼——修完下面 3 个问题,下次体检就能冲 A 段',
+            beat_ratio_text: '你已打败全球 58% 的 AI 用户,位列前 42%',
+            rank_headline: '前 42%', rank_caption: '打败全球 58% 的用户',
+            value_headline: '9 倍', value_label: '订阅回本倍数', value_caption: '同样用量按量付费约 $1780/月,你只付 $200',
+            saving_headline: '+34%', saving_label: '可释放额度', saving_caption: '照方案优化后同一份订阅能多干的活',
+            est_monthly_saving_usd: 600, billing_mode: 'subscription', total_samples: 128,
+            dimension_scores: [
+                { key: 'routing', label: '模型路由', score: 55 },
+                { key: 'timing', label: '时间习惯', score: 90 },
+                { key: 'context', label: '上下文卫生', score: 60 },
+                { key: 'leverage', label: '沉淀复用', score: 85 },
+            ],
+            issues: [
+                { severity: 'critical', dimension: '模型路由', title: '旗舰模型承担了过多常规任务',
+                  detail: '旗舰档吃掉了大部分成本,其中约四成是轻量模型就能干好的活。',
+                  fix: '给日常任务设默认模型: 机械任务用 Haiku 级,日常编码用 Sonnet 级,只在架构/疑难问题时手动切换旗舰档。',
+                  impact: '成本或额度消耗下降 30-60%',
+                  steps: ['把日常默认模型设为 Sonnet 级 (Claude Code 里输入 /model 即可切换)',
+                          '机械任务 (格式转换/批量提取/分类) 明确指定 Haiku 级模型执行',
+                          '把模型使用规则写进 CLAUDE.md——点「一键修复」自动生成,复制粘贴即可',
+                          '一周后重新体检,确认旗舰档成本占比降到 60% 以下'] },
+                { severity: 'warning', dimension: '上下文卫生', title: '缓存命中率仅 38%',
+                  detail: '提示词开头不稳定,缓存没有生效,输入费用一直按全价在跑。',
+                  fix: '把 system prompt 和固定参考资料放在提示词开头并保持稳定,变化的内容放末尾。',
+                  impact: '输入成本最高降 90%',
+                  steps: ['检查高频提示词,把固定部分 (角色设定/规则/参考资料) 挪到最前面',
+                          '固定部分逐字保持稳定——改一个字缓存就失效',
+                          '变化的问题和数据统一放在提示词末尾',
+                          '一周后重新体检,目标缓存命中率回到 60% 以上'] },
+                { severity: 'info', dimension: '沉淀复用', title: '高频任务未沉淀为 skill',
+                  detail: '同样的活每次都从头教 AI 一遍,时间和钱都花在重复解释上。',
+                  fix: '把常干的活写成 skill 模板: 一次写好,反复复用,结果还更稳定。',
+                  impact: '重复任务耗时下降一半以上',
+                  steps: ['找出本周重复做过 3 次以上的任务',
+                          '把它的完整提示词和步骤整理成一个 skill 或固定模板',
+                          '下次直接调用模板,只补充本次的差异信息'] },
+            ],
+            routing_diagnosis: '旗舰档模型吃掉了你 71% 的用量价值。按经验其中约四成是可以下放的常规任务——把它们切到轻量档。',
+            model_routing: [
+                { task: '机械任务(格式转换/重命名/提取/分类/简单问答)', recommended_model: 'Haiku 4.5 等轻量档', reason: '这类任务对推理深度没要求,轻量模型速度快 3-5 倍、价格约为旗舰档 1/10', est_saving_pct: 90 },
+                { task: '日常编码 / 文档撰写 / 代码审查', recommended_model: 'Sonnet 5 等均衡档', reason: '性价比最优,质量足够覆盖 80% 日常工作', est_saving_pct: 60 },
+                { task: '架构设计 / 深度调试 / 复杂决策 / 高风险输出', recommended_model: 'Opus 5 / Fable 5 等旗舰档', reason: '这是旗舰模型真正的用武之地——错误成本高、需要长程推理的任务', est_saving_pct: null },
+                { task: '大批量流水线(翻译/摘要/数据清洗)', recommended_model: '轻量档 + 后台定时批处理', reason: '量大且单条简单,用轻量模型异步跑,不占用你的工作时间', est_saving_pct: 85 },
+            ],
+            time_insights: [{ pattern: '使用高度集中在 10点/15点/21点(占 63%)', advice: '集中使用是好习惯。进一步:在高峰时段开始前,先把当天要用的资料和模板准备好,让高峰时段纯产出。' }],
+            peak_hours: [10, 15, 21],
+            hourly_histogram: [1, 0, 0, 0, 0, 0, 0, 2, 5, 12, 22, 14, 6, 8, 16, 24, 15, 7, 4, 6, 12, 26, 10, 3],
+            goal_inference: '数据显示你 61% 的 AI 用量花在「工程开发」上——这就是你的实际主线。',
+            path_advice: '工程主线的复利路径:①高频操作沉淀成 skill/脚本 ②测试和审查交给流水线自动跑 ③旗舰模型只留给架构和疑难调试。目标是让 AI 从\'帮你写代码\'升级为\'帮你运营工程体系\'。',
+            action_items: [
+                { priority: 1, title: '高配模型下放', detail: '大量简单任务在用最贵的模型。按下面的对照表,把机械杂活交给轻量模型干。', expected_impact: '成本或额度消耗下降 30-60%' },
+                { priority: 2, title: '提高缓存命中率', detail: '提示词缓存能让重复内容按约 1 折计费。把 system prompt 和固定参考资料放在提示词开头并保持稳定。', expected_impact: '输入成本最高降 90%' },
+                { priority: 3, title: '沉淀高频任务为 skill', detail: '同样的活每次都从头教 AI 一遍。把常干的活写成 skill 模板,一次写好反复用。', expected_impact: '重复任务耗时下降一半以上' },
+            ],
+        };
+
+        function showSample() {
+            sampleMode = true;
+            lastCoach = SAMPLE_COACH;
+            stopScanAnimation();
+            revealScore(SAMPLE_COACH);
+            document.getElementById('report-checkup').innerHTML = `
+                <div class="challenge-banner" style="margin-top:20px;">
+                    👀 这是一份<strong>示例报告</strong>(虚构数据),看看体检长什么样。想看你自己的:
+                    <button class="btn-secondary" style="margin-left:8px; padding:6px 14px; font-size:13px;" onclick="runCheckup()">回到安装指引</button>
+                </div>` + sectionIssues(SAMPLE_COACH);
+            document.getElementById('report-plan').innerHTML =
+                sectionActionPlan(SAMPLE_COACH) + sectionRouting(SAMPLE_COACH) + sectionTime(SAMPLE_COACH) + sectionGoal(SAMPLE_COACH);
+            revealSections();
+            location.hash = '#checkup';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         /* ===== 各板块渲染 ===== */
@@ -1649,11 +1800,17 @@
         }
 
         async function loadOptimization(btn) {
+            if (sampleMode) {
+                btn.textContent = '示例模式 · 装好小工具测出自己的分数后可用';
+                return;
+            }
             btn.disabled = true;
             btn.textContent = '正在生成你的专属规则…';
             try {
                 const token = getDeviceToken();
-                const res = await fetch(`${API_URL}/api/v1/coach/optimize?token=${encodeURIComponent(token)}`, { mode: 'cors' });
+                const res = await fetch(`${API_URL}/api/v1/coach/optimize`, {
+                    mode: 'cors', headers: { 'X-Device-Token': token },
+                });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
                 // 360 式成就反馈: 每张执行卡打上"已写入规则"
@@ -2174,6 +2331,7 @@
                             <li style="opacity:.6;">🔨 开发中(尚未上线): 每周深度报告 · Skill 清理 · 新品优先推送</li>
                         </ul>
                         <a class="price-cta" href="javascript:void(0)" id="proCta" onclick="upgradePro(this)">成为创始会员</a>
+                        <div id="proFallback"></div>
                     </div>
                     <div class="price-card">
                         <div class="price-tier">大师私教</div>
@@ -2222,12 +2380,43 @@
                     window.location.href = data.url;
                     return;
                 }
-                // Stripe 未配置或暂不可用: 回退到早鸟名单
-                window.location.href = `${CONTACT}365%20AI%20Master%20创始会员%20早鸟`;
+                // 支付通道尚未开通: 页内留邮箱锁定创始价 (不再跳 mailto —— 没配邮件客户端的机器会静默失灵)
+                showProFallback();
             } catch (e) {
-                window.location.href = `${CONTACT}365%20AI%20Master%20创始会员%20早鸟`;
+                showProFallback();
             } finally {
-                btn.textContent = '升级 Pro';
+                btn.textContent = '成为创始会员';
+            }
+        }
+
+        function showProFallback() {
+            const el = document.getElementById('proFallback');
+            if (!el || el.innerHTML) return;
+            el.innerHTML = `
+                <div style="margin-top:12px; font-size:13px; color:var(--ink-2); line-height:1.6;">
+                    支付通道开通前,先锁定创始价名额——留个邮箱,上线时第一时间通知你。
+                </div>
+                <div class="subscribe-box" style="margin-top:8px;">
+                    <input type="email" id="proEmail" placeholder="你的邮箱" aria-label="创始会员邮箱">
+                    <button onclick="doProSubscribe()">锁定名额</button>
+                </div>
+                <div class="sub-msg" id="proMsg"></div>`;
+        }
+
+        async function doProSubscribe() {
+            const input = document.getElementById('proEmail');
+            const msg = document.getElementById('proMsg');
+            const email = (input.value || '').trim();
+            if (!email) { msg.textContent = '请输入邮箱'; return; }
+            try {
+                const res = await fetch(`${API_URL}/api/v1/subscribe`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email }),
+                });
+                const data = await res.json();
+                msg.textContent = res.ok ? '✓ 已锁定,开通后邮件通知你' : (data.detail || '提交失败');
+            } catch (e) {
+                msg.textContent = '网络错误,稍后再试';
             }
         }
 
@@ -2270,6 +2459,7 @@
 
                 // 无 token: 从未同步过, 不请求任何数据, 直接进引导空态
                 // (杜绝旧行为——把陌生人的全局最新数据当成"你的"展示)
+                sampleMode = false;
                 if (!token) {
                     lastCoach = null;
                     revealScore(null);
@@ -2281,9 +2471,11 @@
 
                 let coach = null, analytics = null, netError = false;
                 try {
+                    // 令牌走请求头, 不进 URL / 不进服务端访问日志
+                    const auth = { headers: { 'X-Device-Token': token } };
                     const [coachRes, aRes] = await Promise.all([
-                        fetchJSON(`${API_URL}/api/v1/coach/mine?token=${encodeURIComponent(token)}`),
-                        fetchJSON(`${API_URL}/api/v1/analytics/30day?token=${encodeURIComponent(token)}`),
+                        fetchJSON(`${API_URL}/api/v1/coach/mine`, auth),
+                        fetchJSON(`${API_URL}/api/v1/analytics/30day`, auth),
                     ]);
                     if (coachRes.ok) coach = await coachRes.json();
                     else if (coachRes.status !== 404) netError = true;  // 404=该设备暂无数据(正常空态); 其它=真故障

@@ -1,9 +1,13 @@
 """FastAPI routes for AgentFit Cloud API."""
-from fastapi import APIRouter, HTTPException, Header, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Header, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from typing import Optional
+import hmac
 import logging
 import json
+import threading
+import time
+from collections import defaultdict, deque
 from datetime import datetime
 
 from cloud.models import (
@@ -27,18 +31,66 @@ analytics = AnalyticsEngine(db)
 coach = CoachEngine(db)
 
 
+def _api_key_ok(x_api_key: Optional[str]) -> bool:
+    """运营接口鉴权: 必须配置了非默认 API_KEY 且常量时间比较相等。"""
+    if settings.api_key in ("", "dev-key-change-in-production"):
+        return False
+    return hmac.compare_digest(x_api_key or "", settings.api_key)
+
+
 def verify_api_key(x_api_key: Optional[str] = Header(None)) -> bool:
     """Verify API key if required."""
     if not settings.require_api_key:
         return True
-
-    if x_api_key is None:
-        return False
-
-    return x_api_key == settings.api_key
+    return _api_key_ok(x_api_key)
 
 
-@router.post("/submit", status_code=201, response_model=APIResponse)
+# ---------------------------------------------------------------------------
+# 写接口频控 (进程内滑动窗口, 按客户端 IP)。
+# 单 worker 部署下够用; 目的是挡脚本灌分, 不是防 DDoS。
+# 阈值走 settings.rate_limit_requests_per_minute (默认 60/min)。
+# ---------------------------------------------------------------------------
+_rate_buckets: dict = defaultdict(deque)
+_rate_lock = threading.Lock()
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def rate_limit(request: Request) -> None:
+    if not settings.rate_limit_enabled:
+        return
+    limit = settings.rate_limit_requests_per_minute
+    now = time.monotonic()
+    ip = _client_ip(request)
+    with _rate_lock:
+        bucket = _rate_buckets[ip]
+        while bucket and now - bucket[0] > 60.0:
+            bucket.popleft()
+        if len(bucket) >= limit:
+            raise HTTPException(status_code=429, detail="Too many requests, slow down")
+        bucket.append(now)
+
+
+def _resolve_token(query_token: Optional[str], header_token: Optional[str]) -> Optional[str]:
+    """设备令牌来源: X-Device-Token 头优先, 兼容 ?token= 查询参数。
+
+    头部不会进 uvicorn access log, 前端一律走头部; 查询参数保留给
+    CLI 打印的一次性绑定链接与旧客户端。
+    """
+    token = (header_token or query_token or "").strip()
+    if not token:
+        return None
+    if len(token) > 64:
+        raise HTTPException(status_code=422, detail="Invalid device token")
+    return token
+
+
+@router.post("/submit", status_code=201, response_model=APIResponse, dependencies=[Depends(rate_limit)])
 async def submit_score(
     payload: AggregatedScore,
     x_api_key: Optional[str] = Header(None),
@@ -147,16 +199,18 @@ async def get_stats():
 @router.get("/analytics/30day", response_model=dict)
 async def get_30day_analytics(
     token: Optional[str] = Query(None, max_length=64),
+    x_device_token: Optional[str] = Header(None),
 ):
     """
     Get 30-day trend analysis with weekly breakdowns and closed-loop improvements.
 
-    需带 ?token= 才返回本设备的趋势;无 token 返回空趋势,
-    绝不把全库分数曲线泄露给匿名访客。
+    需带设备令牌 (X-Device-Token 头或 ?token=) 才返回本设备的趋势;
+    无 token 返回空趋势, 绝不把全库分数曲线泄露给匿名访客。
     """
     if not settings.enable_analytics:
         raise HTTPException(status_code=503, detail="Analytics currently disabled")
 
+    token = _resolve_token(token, x_device_token)
     if not token:
         return {
             "weeks": [],
@@ -209,7 +263,7 @@ async def export_analytics(
     if not settings.enable_analytics:
         raise HTTPException(status_code=503, detail="Analytics currently disabled")
 
-    if settings.api_key in ("", "dev-key-change-in-production") or x_api_key != settings.api_key:
+    if not _api_key_ok(x_api_key):
         raise HTTPException(status_code=401, detail="Export requires API key")
 
     try:
@@ -232,7 +286,7 @@ async def export_analytics(
         raise HTTPException(status_code=500, detail="Error exporting analytics")
 
 
-@router.post("/coach/analyze", response_model=CoachReport)
+@router.post("/coach/analyze", response_model=CoachReport, dependencies=[Depends(rate_limit)])
 async def coach_analyze(
     payload: AggregatedScore,
     x_api_key: Optional[str] = Header(None),
@@ -311,39 +365,49 @@ def _report_for_token(token: str) -> CoachReport:
 
 @router.get("/coach/mine", response_model=CoachReport)
 async def coach_mine(
-    token: str = Query(..., min_length=1, max_length=64, description="匿名设备令牌"),
+    token: Optional[str] = Query(None, max_length=64, description="匿名设备令牌 (兼容参数)"),
+    x_device_token: Optional[str] = Header(None),
 ) -> CoachReport:
     """获取本设备自己的教练报告 (首页主接口)。
 
-    token = 客户端 localStorage / CLI 生成的匿名 uuid。
+    令牌来自 X-Device-Token 头 (推荐) 或 ?token=。
     404 表示该设备尚无提交 (真正的空状态,前端据此进入引导)。
     """
+    token = _resolve_token(token, x_device_token)
+    if not token:
+        raise HTTPException(status_code=422, detail="Device token required (X-Device-Token header or ?token=)")
     return _report_for_token(token)
 
 
 @router.get("/coach/latest", response_model=CoachReport)
 async def coach_latest(
     token: Optional[str] = Query(None, max_length=64),
+    x_device_token: Optional[str] = Header(None),
 ) -> CoachReport:
     """[已收敛] 旧的无鉴权「全局最新」接口已关闭。
 
-    必须带 ?token= (等价 /coach/mine);不带 token 一律 404,
+    必须带设备令牌 (等价 /coach/mine);不带一律 404,
     不再向任意访客泄露任何人的真实体检数据。
     """
+    token = _resolve_token(token, x_device_token)
     if not token:
-        raise HTTPException(status_code=404, detail="Provide ?token= or use /coach/mine")
+        raise HTTPException(status_code=404, detail="Provide a device token or use /coach/mine")
     return _report_for_token(token)
 
 
 @router.get("/coach/optimize")
 async def coach_optimize(
-    token: str = Query(..., min_length=1, max_length=64, description="匿名设备令牌"),
+    token: Optional[str] = Query(None, max_length=64, description="匿名设备令牌 (兼容参数)"),
+    x_device_token: Optional[str] = Header(None),
 ):
     """一键优化: 把本设备最近一次体检编译成 CLAUDE.md 配置块。
 
-    需带 ?token= (per-token);返回 {"markdown": ...};
+    需带设备令牌 (X-Device-Token 头或 ?token=);返回 {"markdown": ...};
     404 表示该设备尚无体检数据。
     """
+    token = _resolve_token(token, x_device_token)
+    if not token:
+        raise HTTPException(status_code=422, detail="Device token required (X-Device-Token header or ?token=)")
     latest = db.get_latest_submission(device_token=token)
     if latest is None:
         raise HTTPException(status_code=404, detail="No submissions yet for this device")
@@ -447,7 +511,7 @@ async def master_retire(
     return APIResponse(success=True, message="已下架")
 
 
-@router.post("/master/submit", status_code=201, response_model=APIResponse)
+@router.post("/master/submit", status_code=201, response_model=APIResponse, dependencies=[Depends(rate_limit)])
 async def master_submit(
     payload: dict,
     x_api_key: Optional[str] = Header(None),
@@ -476,7 +540,7 @@ async def master_submit(
     return APIResponse(success=True, message="已入池")
 
 
-@router.post("/subscribe", status_code=201, response_model=APIResponse)
+@router.post("/subscribe", status_code=201, response_model=APIResponse, dependencies=[Depends(rate_limit)])
 async def subscribe(payload: dict):
     """订阅 AI 资讯与新品推荐 (邮箱)。幂等: 重复订阅返回成功。"""
     import re as _re
@@ -495,7 +559,7 @@ async def subscribe(payload: dict):
 @router.get("/master/stats")
 async def master_stats(x_api_key: Optional[str] = Header(None)):
     """运营统计 (需 X-API-Key): 订阅数 + 动态池条目数。30 天退出闸用。"""
-    if settings.api_key in ("", "dev-key-change-in-production") or x_api_key != settings.api_key:
+    if not _api_key_ok(x_api_key):
         raise HTTPException(status_code=401, detail="Invalid API key")
     return {
         "subscribers": db.count_subscribers(),
@@ -503,7 +567,7 @@ async def master_stats(x_api_key: Optional[str] = Header(None)):
     }
 
 
-@router.post("/billing/checkout")
+@router.post("/billing/checkout", dependencies=[Depends(rate_limit)])
 async def billing_checkout(payload: Optional[dict] = None):
     """创建 Stripe Checkout 会话 (Pro $1/月 订阅),返回跳转 URL。
 
@@ -557,6 +621,14 @@ async def billing_webhook(request: Request):
 
     etype = event["type"]
     obj = event["data"]["object"]
+    # stripe SDK 返回的是 StripeObject (Session/Subscription), 不是 dict —
+    # 直接 .get() 会抛 AttributeError。统一转成纯 dict 再读字段。
+    for conv in ("to_dict_recursive", "to_dict"):
+        if hasattr(obj, conv):
+            obj = getattr(obj, conv)()
+            break
+    else:
+        obj = dict(obj)
 
     if etype == "checkout.session.completed":
         details = obj.get("customer_details") or {}
@@ -581,8 +653,16 @@ async def billing_webhook(request: Request):
 
 
 @router.get("/billing/status")
-async def billing_status(email: str = Query(..., max_length=320)):
-    """查询邮箱的 Pro 状态: active / canceled / none。"""
+async def billing_status(
+    email: str = Query(..., max_length=320),
+    x_api_key: Optional[str] = Header(None),
+):
+    """查询邮箱的 Pro 状态: active / canceled / none (运营接口, 需 X-API-Key)。
+
+    [已收敛] 此前匿名可查任意邮箱, 等于付费用户邮箱枚举通道; 前端并不使用它。
+    """
+    if not _api_key_ok(x_api_key):
+        raise HTTPException(status_code=401, detail="Invalid API key")
     return {"email": email.lower(), "status": db.get_pro_status(email.lower())}
 
 

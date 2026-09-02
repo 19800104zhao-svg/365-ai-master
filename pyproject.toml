@@ -4,12 +4,30 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "365aimaster"
-version = "0.2.0"
+version = "0.3.0"
 description = "AI usage health check for Claude Code & Codex — score your AI coding habits, get a fix plan, verify you improved."
+readme = "README.md"
+license = {text = "MIT"}
 authors = [
     {name = "Kenichi", email = "t@tonyzhao.com"}
 ]
 requires-python = ">=3.11"
+keywords = ["claude-code", "codex", "ai", "developer-tools", "usage-analytics"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development",
+]
+
+[project.urls]
+Homepage = "https://master.724.fund"
+Repository = "https://github.com/19800104zhao-svg/365-ai-master"
+Issues = "https://github.com/19800104zhao-svg/365-ai-master/issues"
 # CLI 运行时的真实依赖只有这两个(storage 用标准库 sqlite3)。
 # 后端依赖挪到 optional [server],让 `pip install 365aimaster` / uvx 保持轻量,
 # 不再拖 fastapi/sqlalchemy/psycopg2-binary(后者在无 pg 的机器上装易失败)。
@@ -24,6 +42,7 @@ dev = [
     "pytest-cov>=4.0",
     "black>=23.0",
     "ruff>=0.1.0",
+    "httpx2",  # starlette>=1.x TestClient 依赖它
 ]
 # 自托管云端后端(cloud/)时才需要;Railway 部署实际走 requirements.txt。
 server = [

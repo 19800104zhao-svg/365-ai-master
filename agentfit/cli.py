@@ -311,6 +311,25 @@ def sync(
         typer.echo(f"⚡ {report['saving_text']}")
     for i, item in enumerate(report.get("action_items", []), 1):
         typer.echo(f"  {i}. {item.get('title')} — {item.get('expected_impact')}")
+
+    # 留存钩子: 和上次比, 让"修完再测"有反馈; 没装定时任务的提示一句
+    prev = cfg.get("last_score")
+    score_now = profile["score"]
+    if isinstance(prev, (int, float)):
+        delta = int(score_now - prev)
+        if delta > 0:
+            typer.echo(f"📈 比上次 +{delta} 分")
+        elif delta < 0:
+            typer.echo(f"📉 比上次 {delta} 分")
+        else:
+            typer.echo("➡️  与上次持平")
+    cfg["last_score"] = score_now
+    sync_mod.save_config(cfg)
+
+    plist = Path.home() / "Library" / "LaunchAgents" / f"{sync_mod.LAUNCHD_LABEL}.plist"
+    if not plist.exists():
+        typer.echo("💡 运行 365aimaster sync --install-daily,每晚自动体检,不用记着手动跑")
+
     typer.echo(f"\n查看完整报告 (打开即绑定本机,数据只有你自己看得到): {effective_api}/?t={device_token}")
 
 

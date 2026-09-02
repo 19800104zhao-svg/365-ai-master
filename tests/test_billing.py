@@ -90,13 +90,18 @@ def test_webhook_rejects_bad_signature(client, monkeypatch):
     assert res.status_code == 400
 
 
-def test_billing_status_endpoint(client, test_db):
+def test_billing_status_endpoint(client, test_db, monkeypatch):
+    """运营接口: 需 X-API-Key (匿名查任意邮箱=付费用户枚举通道, 已收敛)。"""
+    from cloud.config import settings
     test_db.upsert_pro_subscription(
         email="user@test.dev",
         stripe_customer_id="cus_9",
         stripe_subscription_id="sub_9",
         status="active",
     )
-    res = client.get("/api/v1/billing/status?email=USER@test.dev")
+    assert client.get("/api/v1/billing/status?email=USER@test.dev").status_code == 401
+
+    monkeypatch.setattr(settings, "api_key", "real-key")
+    res = client.get("/api/v1/billing/status?email=USER@test.dev", headers={"X-API-Key": "real-key"})
     assert res.status_code == 200
     assert res.json()["status"] == "active"
