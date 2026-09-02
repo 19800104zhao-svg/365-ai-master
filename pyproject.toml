@@ -23,13 +23,8 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development",
 ]
-
-[project.urls]
-Homepage = "https://master.724.fund"
-Repository = "https://github.com/19800104zhao-svg/365-ai-master"
-Issues = "https://github.com/19800104zhao-svg/365-ai-master/issues"
 # CLI 运行时的真实依赖只有这两个(storage 用标准库 sqlite3)。
-# 后端依赖挪到 optional [server],让 `pip install 365aimaster` / uvx 保持轻量,
+# 后端依赖挪到 optional [server],让 pip install / uvx 保持轻量,
 # 不再拖 fastapi/sqlalchemy/psycopg2-binary(后者在无 pg 的机器上装易失败)。
 dependencies = [
     "typer>=0.9",
@@ -58,6 +53,11 @@ server = [
 [project.scripts]
 365aimaster = "agentfit.cli:app"
 agentfit = "agentfit.cli:app"
+
+[project.urls]
+Homepage = "https://master.724.fund"
+Repository = "https://github.com/19800104zhao-svg/365-ai-master"
+Issues = "https://github.com/19800104zhao-svg/365-ai-master/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
